@@ -21,4 +21,13 @@ class Settings:
     # RAG
     FAISS_INDEX_PATH: str = f"{BASE_DIR}/data/faiss_index"
 
+    # Monitoring (OpenTelemetry & LangSmith)
+    LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
+    LANGCHAIN_ENDPOINT: str = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", "")
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "agenthic-text2sql")
+    
+    OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "agenthic-text2sql-backend")
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
 settings = Settings()

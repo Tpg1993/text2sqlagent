@@ -15,6 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup OpenTelemetry
+from app.utils.telemetry import setup_telemetry
+setup_telemetry(app)
+
+
 class ChatRequest(BaseModel):
     message: str
 

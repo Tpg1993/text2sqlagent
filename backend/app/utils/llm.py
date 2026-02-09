@@ -11,45 +11,52 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
 def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any]) -> str:
     """
     Invokes a chain using Gemini (primary) with OpenAI as fallback.
     """
-    # Use Gemini as primary
-    try:
-        print(f"🔵 Using Gemini model {settings.GEMINI_MODEL}...")
-        logger.info("Using Gemini as primary LLM...")
-        
-        if not settings.GOOGLE_API_KEY:
-            raise ValueError("GOOGLE_API_KEY is not set")
-        
-        # Create a RunnableLambda that acts as the LLM
-        def gemini_runner(prompt_value):
-            # 1. Initialize Client
-            client = genai.Client(api_key=settings.GOOGLE_API_KEY, http_options={'api_version':'v1'})
+    with tracer.start_as_current_span("invoke_chain_with_fallback") as span:
+        # Use Gemini as primary
+        try:
+            print(f"🔵 Using Gemini model {settings.GEMINI_MODEL}...")
+            logger.info("Using Gemini as primary LLM...")
             
-            # 2. Extract text from PromptValue (LangChain object)
-            prompt_text = prompt_value.to_string()
+            if not settings.GOOGLE_API_KEY:
+                raise ValueError("GOOGLE_API_KEY is not set")
             
-            # 3. Call New SDK
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=prompt_text
-            )
+            # Create a RunnableLambda that acts as the LLM
+            def gemini_runner(prompt_value):
+                # 1. Initialize Client
+                client = genai.Client(api_key=settings.GOOGLE_API_KEY, http_options={'api_version':'v1'})
+                
+                # 2. Extract text from PromptValue (LangChain object)
+                prompt_text = prompt_value.to_string()
+                
+                # 3. Call New SDK
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt_text
+                )
+                
+                # 4. Return AIMessage for compatibility with StrOutputParser
+                return AIMessage(content=response.text)
+    
+            # Wrap in RunnableLambda so it supports "|" operator
+            llm = RunnableLambda(gemini_runner)
             
-            # 4. Return AIMessage for compatibility with StrOutputParser
-            return AIMessage(content=response.text)
-
-        # Wrap in RunnableLambda so it supports "|" operator
-        llm = RunnableLambda(gemini_runner)
-        
-        chain = chain_factory(llm)
-        result = chain.invoke(input_data)
-        print(f"✅ Gemini response received")
-        return result
-        
-    except Exception as e:
-        print(f"❌ Gemini call failed: {e}")
+            chain = chain_factory(llm)
+            result = chain.invoke(input_data)
+            print(f"✅ Gemini response received")
+            return result
+            
+        except Exception as e:
+            span.record_exception(e)
+            span.set_status(trace.Status(trace.StatusCode.ERROR))
+            print(f"❌ Gemini call failed: {e}")
         logger.error(f"Gemini call failed: {e}")
         
         # Check for Gemini Rate Limit

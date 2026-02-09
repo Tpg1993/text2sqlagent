@@ -1,5 +1,15 @@
 from langgraph.graph import StateGraph, END
 from app.utils.state import AgentState
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+# Helper to trace nodes
+def trace_node(node_name, node_func):
+    def wrapped(state):
+        with tracer.start_as_current_span(f"agent_node_{node_name}"):
+            return node_func(state)
+    return wrapped
 
 # Modular Imports
 from app.agents.orchestrator import orchestrator_node
@@ -18,19 +28,19 @@ from app.agents.rag_generate import rag_gen_node
 workflow = StateGraph(AgentState)
 
 # Add Nodes
-workflow.add_node("orchestrator", orchestrator_node)
-workflow.add_node("schema", fetch_schema_node)
-workflow.add_node("planner", planner_node)
-workflow.add_node("generate", generate_node)
-workflow.add_node("validate", validate_node)
-workflow.add_node("execute", execute_node)
-workflow.add_node("evaluate", evaluate_node)
-workflow.add_node("retry", retry_node)
-workflow.add_node("chart", chart_node)
-workflow.add_node("format", format_node)
+workflow.add_node("orchestrator", trace_node("orchestrator", orchestrator_node))
+workflow.add_node("schema", trace_node("schema", fetch_schema_node))
+workflow.add_node("planner", trace_node("planner", planner_node))
+workflow.add_node("generate", trace_node("generate", generate_node))
+workflow.add_node("validate", trace_node("validate", validate_node))
+workflow.add_node("execute", trace_node("execute", execute_node))
+workflow.add_node("evaluate", trace_node("evaluate", evaluate_node))
+workflow.add_node("retry", trace_node("retry", retry_node))
+workflow.add_node("chart", trace_node("chart", chart_node))
+workflow.add_node("format", trace_node("format", format_node))
 
-workflow.add_node("retrieve", retrieve_node)
-workflow.add_node("rag_gen", rag_gen_node)
+workflow.add_node("retrieve", trace_node("retrieve", retrieve_node))
+workflow.add_node("rag_gen", trace_node("rag_gen", rag_gen_node))
 
 # Entry
 workflow.set_entry_point("orchestrator")
