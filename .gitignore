@@ -49,7 +49,19 @@ yarn-error.log
 # RAG / Data
 backend/data/faiss_index/
 backend/data/docs/
+
+# Debug & Logs
 backend/gemini_debug.log
 backend/backend_error.log
 backend/error_log.txt
 backend/models_list.txt
+backend/debug/
+backend/output_logs/
+backend/*_test*.log
+backend/*_test*.err
+backend/create_index.ps1
+
+# Project root logs
+error.log
+backend_error.log
+pip_list.txt

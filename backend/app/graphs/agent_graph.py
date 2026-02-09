@@ -4,9 +4,38 @@ from opentelemetry import trace
 
 tracer = trace.get_tracer(__name__)
 
-# Helper to trace nodes
+# Agent step display names for SSE
+AGENT_DISPLAY_NAMES = {
+    "orchestrator": "🤖 Analyzing query...",
+    "schema": "📋 Fetching database schema...",
+    "generate": "✍️ Generating SQL...",
+    "validate": "✅ Validating SQL...",
+    "execute": "⚡ Running query...",
+    "evaluate": "📊 Evaluating results...",
+    "chart": "📈 Creating visualization...",
+    "format": "✨ Formatting response...",
+    "retrieve": "🔍 Searching documents...",
+    "rag_gen": "💬 Generating answer...",
+    "retry": "🔄 Retrying...",
+}
+
+# Helper to trace nodes and emit SSE events
 def trace_node(node_name, node_func):
     def wrapped(state):
+        # Emit SSE event for progress
+        session_id = state.get("session_id")
+        if session_id:
+            import asyncio
+            from app.utils.sse_manager import sse_manager
+            try:
+                asyncio.create_task(sse_manager.send_event(
+                    session_id,
+                    "progress",
+                    {"step": node_name, "message": AGENT_DISPLAY_NAMES.get(node_name, f"Processing {node_name}...")}
+                ))
+            except:
+                pass  # Ignore SSE errors
+        
         with tracer.start_as_current_span(f"agent_node_{node_name}"):
             return node_func(state)
     return wrapped

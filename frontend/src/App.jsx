@@ -10,6 +10,7 @@ function App() {
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [agentProgress, setAgentProgress] = useState('');
     const scrollRef = useRef(null);
 
     useEffect(() => {
@@ -26,9 +27,12 @@ function App() {
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setLoading(true);
+        setAgentProgress('🤖 Starting...');
 
         try {
-            const res = await chat(userMsg.content);
+            const res = await chat(userMsg.content, (progressMsg) => {
+                setAgentProgress(progressMsg);
+            });
             const assistantMsg = {
                 role: 'assistant',
                 content: res.response,
@@ -49,6 +53,7 @@ function App() {
             setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
         } finally {
             setLoading(false);
+            setAgentProgress('');
         }
     };
 
@@ -121,7 +126,7 @@ function App() {
                     <div className="flex justify-start">
                         <div className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-2xl rounded-tl-sm border border-slate-700 ml-11">
                             <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                            <span className="text-xs text-slate-400">Thinking...</span>
+                            <span className="text-xs text-slate-400">{agentProgress || 'Thinking...'}</span>
                         </div>
                     </div>
                 )}

@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+import uuid
 from app.graphs.agent_graph import graph
 from app.config import settings
+from app.utils.sse_manager import sse_manager
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -22,11 +25,24 @@ setup_telemetry(app)
 
 class ChatRequest(BaseModel):
     message: str
+    session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
     data: Optional[List[Dict[str, Any]]] = None
     chart: Optional[Dict[str, Any]] = None
+
+@app.get(settings.API_V1_STR + "/stream/{session_id}")
+async def stream_progress(session_id: str):
+    """SSE endpoint for streaming agent progress."""
+    return StreamingResponse(
+        sse_manager.stream_events(session_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 @app.post(settings.API_V1_STR + "/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -34,16 +50,24 @@ async def chat_endpoint(request: ChatRequest):
     import traceback
     logger = logging.getLogger(__name__)
     
+    # Generate or use provided session ID
+    session_id = request.session_id or str(uuid.uuid4())
+    sse_manager.create_session(session_id)
+    
     try:
         initial_state = {
             "question": request.message,
             "messages": [],
-            "retry_count": 0
+            "retry_count": 0,
+            "session_id": session_id
         }
         result = await graph.ainvoke(initial_state)
         
         final_msg = result.get("messages", [""])[-1]
         response_text = final_msg if isinstance(final_msg, str) else final_msg.content
+        
+        # Close SSE session
+        sse_manager.close_session(session_id)
         
         return ChatResponse(
             response=response_text,

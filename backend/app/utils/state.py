@@ -28,3 +28,4 @@ class AgentState(TypedDict):
     
     # Meta
     retry_count: int
+    session_id: Optional[str]  # For SSE progress streaming
