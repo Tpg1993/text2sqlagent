@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenthic Data Assistant</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="error-log" style="color: red; padding: 20px;"></div>
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      document.getElementById('error-log').innerHTML +=
+        `<p>Error: ${message}<br>Source: ${source}:${lineno}</p>`;
+    };
+    console.error = (function (old) {
+      return function (...args) {
+        document.getElementById('error-log').innerHTML +=
+          `<p>Console Error: ${args.join(' ')}</p>`;
+        old.apply(console, args);
+      }
+    })(console.error);
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

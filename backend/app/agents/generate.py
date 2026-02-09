@@ -1,0 +1,28 @@
+from app.utils.state import AgentState
+from app.sql.generator import generate_sql_query
+
+def generate_node(state: AgentState):
+    """Generates SQL."""
+    print("--- GENERATE SQL ---")
+    
+    # Extract error context if this is a retry
+    previous_error = state.get("error")
+    previous_query = state.get("sql_query")
+    
+    # If we are retrying, we might want to clear the error in the new state,
+    # but for generation we need it. The graph state update will merge the new 'sql_query'
+    # and we can clear 'error' here or let the validate node handle it.
+    # Usually returning {"error": None} clears it.
+    
+    sql = generate_sql_query(
+        schema=state['schema'], 
+        plan=state.get('plan', "Directly translate the question to SQL based on the schema."), 
+        question=state['question'],
+        previous_error=previous_error,
+        previous_query=previous_query
+    )
+    
+    return {
+        "sql_query": sql,
+        "error": None # Clear error on new generation
+    }

@@ -1,0 +1,78 @@
+=== ERROR IN CHAT ENDPOINT ===
+Error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Traceback:
+Traceback (most recent call last):
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\backend\app\main.py", line 38, in chat_endpoint
+    result = await graph.ainvoke(initial_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3161, in ainvoke
+    async for chunk in self.astream(
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\pregel\main.py", line 2974, in astream
+    async for _ in runner.atick(
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 304, in atick
+    await arun_with_retry(
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\pregel\_retry.py", line 138, in arun_with_retry
+    return await task.proc.ainvoke(task.input, config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 705, in ainvoke
+    input = await asyncio.create_task(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 473, in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\runnables\config.py", line 627, in run_in_executor
+    return await asyncio.get_running_loop().run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\runnables\config.py", line 618, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\backend\app\agents\planner.py", line 7, in planner_node
+    plan = generate_plan(state['schema'], state['question'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\backend\app\sql\generator.py", line 37, in generate_plan
+    return invoke_chain_with_fallback(create_chain, {"schema": schema, "question": question})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\backend\app\utils\llm.py", line 74, in invoke_chain_with_fallback
+    raise openai_error
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\backend\app\utils\llm.py", line 69, in invoke_chain_with_fallback
+    return chain.invoke(input_data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 3153, in invoke
+    input_ = context.run(step.invoke, input_, config)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 402, in invoke
+    self.generate_prompt(
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1121, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 931, in generate
+    self._generate_with_cache(
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1233, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1386, in _generate
+    raise e
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1381, in _generate
+    raw_response = self.client.with_raw_response.create(**payload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\openai\_legacy_response.py", line 364, in wrapped
+    return cast(LegacyAPIResponse[R], func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1147, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\openai\_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tejas\Downloads\APPS\text2sql rag\.venv\Lib\site-packages\openai\_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+During task with name 'planner' and id '7f46431b-4f18-0a01-b5ea-b33c23c3872d'
+
+=== END ERROR ===

@@ -1,0 +1,9 @@
+﻿Sending request to: http://localhost:8000/api/v1/chat
+Payload: {
+  "message": "Show me the total sales amount for each employee."
+}
+
+Status Code: 500
+
+Raw Response Text:
+Internal Server Error
