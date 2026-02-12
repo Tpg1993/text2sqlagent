@@ -54,6 +54,7 @@ from app.agents.format import format_node
 from app.agents.rag_retrieve import retrieve_node
 from app.agents.rag_generate import rag_gen_node
 from app.utils.guardrails import get_guardrail_manager
+from app.utils.security import security_manager, Permission
 
 # Guardrail Nodes
 def input_guardrail_node(state):
@@ -104,22 +105,75 @@ def output_guardrail_node(state):
 
 workflow = StateGraph(AgentState)
 
-# Add Nodes
+# Add Nodes with Security Enforcement
+# Security Middleware wraps the node first, then tracing wraps that.
+# Order: trace_node(security_manager.enforce(node_func))
+# This records the security check as part of the span.
+
 workflow.add_node("input_guardrail", trace_node("input_guardrail", input_guardrail_node))
-workflow.add_node("orchestrator", trace_node("orchestrator", orchestrator_node))
-workflow.add_node("schema", trace_node("schema", fetch_schema_node))
-workflow.add_node("planner", trace_node("planner", planner_node))
-workflow.add_node("generate", trace_node("generate", generate_node))
-workflow.add_node("validate", trace_node("validate", validate_node))
-workflow.add_node("execute", trace_node("execute", execute_node))
-workflow.add_node("evaluate", trace_node("evaluate", evaluate_node))
-workflow.add_node("retry", trace_node("retry", retry_node))
-workflow.add_node("chart", trace_node("chart", chart_node))
-workflow.add_node("format", trace_node("format", format_node))
+
+# Orchestrator
+workflow.add_node("orchestrator", trace_node("orchestrator", 
+    security_manager.enforce("orchestrator", Permission.ROUTE_REQUEST)(orchestrator_node)
+))
+
+# Schema
+workflow.add_node("schema", trace_node("schema", 
+    security_manager.enforce("schema")(fetch_schema_node)
+))
+
+# Planner
+workflow.add_node("planner", trace_node("planner", 
+    security_manager.enforce("planner", Permission.PLAN_QUERY)(planner_node)
+))
+
+# Generate (SQL)
+workflow.add_node("generate", trace_node("generate", 
+    security_manager.enforce("generate", Permission.GENERATE_SQL)(generate_node)
+))
+
+# Validate
+workflow.add_node("validate", trace_node("validate", 
+    security_manager.enforce("validate", Permission.VALIDATE_SQL)(validate_node)
+))
+
+# Execute (SQL)
+workflow.add_node("execute", trace_node("execute", 
+    security_manager.enforce("execute", Permission.EXECUTE_SQL)(execute_node)
+))
+
+# Evaluate
+workflow.add_node("evaluate", trace_node("evaluate", 
+    security_manager.enforce("evaluate")(evaluate_node)
+))
+
+# Retry
+workflow.add_node("retry", trace_node("retry", 
+    security_manager.enforce("retry")(retry_node)
+))
+
+# Chart
+workflow.add_node("chart", trace_node("chart", 
+    security_manager.enforce("chart", Permission.GENERATE_CHART)(chart_node)
+))
+
+# Format
+workflow.add_node("format", trace_node("format", 
+    security_manager.enforce("format", Permission.FORMAT_RESPONSE)(format_node)
+))
+
+# Output Guardrail
 workflow.add_node("output_guardrail", trace_node("output_guardrail", output_guardrail_node))
 
-workflow.add_node("retrieve", trace_node("retrieve", retrieve_node))
-workflow.add_node("rag_gen", trace_node("rag_gen", rag_gen_node))
+# RAG Nodes
+workflow.add_node("retrieve", trace_node("retrieve", 
+    security_manager.enforce("retrieve", Permission.READ_VECTOR_DB)(retrieve_node)
+))
+
+workflow.add_node("rag_gen", trace_node("rag_gen", 
+    security_manager.enforce("rag_gen", Permission.GENERATE_RAG_ANSWER)(rag_gen_node)
+))
+
 
 # Entry - Start with input guardrail
 workflow.set_entry_point("input_guardrail")

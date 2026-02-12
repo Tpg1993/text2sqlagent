@@ -5,6 +5,11 @@ from app.db.session import engine
 def execute_node(state: AgentState):
     """Executes SQL."""
     print("--- EXECUTE ---")
+    
+    # Security Check
+    sec = state.get('security_context', {})
+    print(f"🔒 Identity: {sec.get('current_agent')} | Role: {sec.get('role')}")
+    
     try:
         with engine.connect() as conn:
             result = conn.execute(text(state['sql_query']))

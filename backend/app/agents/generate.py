@@ -5,6 +5,11 @@ def generate_node(state: AgentState):
     """Generates SQL."""
     print("--- GENERATE SQL ---")
     
+    # Security Check
+    sec = state.get('security_context', {})
+    print(f"🔒 Identity: {sec.get('current_agent')} | Role: {sec.get('role')}")
+    
+    
     # Extract error context if this is a retry
     previous_error = state.get("error")
     previous_query = state.get("sql_query")
