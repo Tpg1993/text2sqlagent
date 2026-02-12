@@ -1,33 +1,108 @@
 import os
+from pathlib import Path
+from typing import Optional
 from dotenv import load_dotenv
 
+# Load .env file for local development
 load_dotenv()
 
-class Settings:
-    PROJECT_NAME: str = "Agenthic Text2SQL & RAG"
-    API_V1_STR: str = "/api/v1"
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+class Config:
+    """
+    Environment-aware configuration.
+    Automatically detects if running locally or in Kubernetes and loads secrets accordingly.
     
-    BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    Priority for secret loading:
+    1. Kubernetes mounted secrets (/mnt/secrets/<key>) - if in K8s
+    2. Environment variables - works everywhere
+    3. Default values
+    """
     
-    # Database
-    SQLITE_URL: str = f"sqlite:///{BASE_DIR}/data/sales.db"
+    def __init__(self):
+        # Auto-detect Kubernetes environment
+        # Kubernetes automatically sets this env var in all pods
+        self.is_kubernetes = os.getenv("KUBERNETES_SERVICE_HOST") is not None
+        
+        # Allow manual override via LOCAL_MODE env var
+        # Set LOCAL_MODE=false in K8s to explicitly use K8s secrets
+        local_mode_override = os.getenv("LOCAL_MODE", "").lower()
+        if local_mode_override:
+            self.is_local = local_mode_override == "true"
+        else:
+            self.is_local = not self.is_kubernetes
+        
+        # Base directory
+        self.BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        # Load all configuration
+        self._load_config()
     
-    # LLM
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
-    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    def get_secret(self, key: str, default: Optional[str] = None) -> str:
+        """
+        Fetch secret from appropriate source based on environment.
+        
+        Args:
+            key: Secret key name
+            default: Default value if secret not found
+            
+        Returns:
+            Secret value
+            
+        Raises:
+            ValueError: If secret not found and no default provided
+        """
+        # Try Kubernetes mounted secret first (if in K8s and not local mode)
+        if not self.is_local and self.is_kubernetes:
+            secret_path = Path(f"/mnt/secrets/{key}")
+            if secret_path.exists():
+                value = secret_path.read_text().strip()
+                if value:
+                    return value
+        
+        # Fallback to environment variable (works in both local and K8s)
+        value = os.getenv(key)
+        if value:
+            return value
+        
+        # Return default if provided
+        if default is not None:
+            return default
+        
+        # Raise error if secret not found and no default
+        raise ValueError(
+            f"Secret '{key}' not found. "
+            f"Environment: {'Kubernetes' if self.is_kubernetes else 'Local'}, "
+            f"Local Mode: {self.is_local}"
+        )
     
-    # RAG
-    FAISS_INDEX_PATH: str = f"{BASE_DIR}/data/faiss_index"
+    def _load_config(self):
+        """Load all configuration values."""
+        # Project metadata
+        self.PROJECT_NAME = "Agenthic Text2SQL & RAG"
+        self.API_V1_STR = "/api/v1"
+        
+        # Secrets (API Keys)
+        self.OPENAI_API_KEY = self.get_secret("OPENAI_API_KEY", default="")
+        self.GOOGLE_API_KEY = self.get_secret("GOOGLE_API_KEY", default="")
+        self.LANGCHAIN_API_KEY = self.get_secret("LANGCHAIN_API_KEY", default="")
+        
+        # Database
+        self.SQLITE_URL = f"sqlite:///{self.BASE_DIR}/data/sales.db"
+        
+        # LLM Configuration
+        self.LLM_MODEL = self.get_secret("LLM_MODEL", default="gpt-4o-mini")
+        self.GEMINI_MODEL = self.get_secret("GEMINI_MODEL", default="gemini-2.0-flash")
+        
+        # RAG
+        self.FAISS_INDEX_PATH = f"{self.BASE_DIR}/data/faiss_index"
+        
+        # Monitoring (OpenTelemetry & LangSmith)
+        self.LANGCHAIN_TRACING_V2 = self.get_secret("LANGCHAIN_TRACING_V2", default="false")
+        self.LANGCHAIN_ENDPOINT = self.get_secret("LANGCHAIN_ENDPOINT", default="https://api.smith.langchain.com")
+        self.LANGCHAIN_PROJECT = self.get_secret("LANGCHAIN_PROJECT", default="text2sql")
+        
+        self.OTEL_SERVICE_NAME = self.get_secret("OTEL_SERVICE_NAME", default="agenthic-text2sql-backend")
+        self.OTEL_EXPORTER_OTLP_ENDPOINT = self.get_secret("OTEL_EXPORTER_OTLP_ENDPOINT", default="")
 
-    # Monitoring (OpenTelemetry & LangSmith)
-    LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
-    LANGCHAIN_ENDPOINT: str = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", "")
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "text2sql")
-    
-    OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "agenthic-text2sql-backend")
-    OTEL_EXPORTER_OTLP_ENDPOINT: str = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+# Singleton instance
+settings = Config()
 
-settings = Settings()

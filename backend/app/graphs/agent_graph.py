@@ -53,6 +53,7 @@ from app.agents.chart import chart_node
 from app.agents.format import format_node
 from app.agents.rag_retrieve import retrieve_node
 from app.agents.rag_generate import rag_gen_node
+from app.agents.approval import approval_pending_node
 from app.utils.guardrails import get_guardrail_manager
 from app.utils.security import security_manager, Permission
 
@@ -174,6 +175,12 @@ workflow.add_node("rag_gen", trace_node("rag_gen",
     security_manager.enforce("rag_gen", Permission.GENERATE_RAG_ANSWER)(rag_gen_node)
 ))
 
+# Approval Pending Node (HITL) - No special permissions needed, just routing
+workflow.add_node("approval_pending", trace_node("approval_pending", 
+    security_manager.enforce("approval_pending")(approval_pending_node)
+))
+
+
 
 # Entry - Start with input guardrail
 workflow.set_entry_point("input_guardrail")
@@ -217,10 +224,26 @@ workflow.add_edge("schema", "generate")
 workflow.add_edge("generate", "validate")
 
 def route_validate(state):
-    if state.get("sql_valid"): return "execute"
-    return "retry"
+    # Check if validation failed
+    if not state.get("sql_valid"):
+        return "retry"
+    
+    # Check if query requires approval (HITL)
+    if state.get("requires_approval"):
+        return "approval_pending"
+    
+    # Query is valid and doesn't require approval
+    return "execute"
 
-workflow.add_conditional_edges("validate", route_validate, {"execute": "execute", "retry": "retry"})
+workflow.add_conditional_edges(
+    "validate", 
+    route_validate, 
+    {
+        "execute": "execute", 
+        "retry": "retry",
+        "approval_pending": "approval_pending"
+    }
+)
 
 workflow.add_edge("execute", "evaluate")
 
@@ -231,6 +254,9 @@ def route_evaluate(state):
 workflow.add_conditional_edges("evaluate", route_evaluate, {"retry": "retry", "chart": "chart"})
 
 workflow.add_edge("chart", "format")
+
+# Approval pending goes to format (returns pending status to user)
+workflow.add_edge("approval_pending", "format")
 
 # Retry Logic
 def route_retry(state):

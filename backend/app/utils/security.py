@@ -130,6 +130,14 @@ class SecurityPolicy:
             role="logic",
             permissions=[]
         )
+        
+        # Approval Pending (HITL): Routing only, no special permissions
+        self.identities["approval_pending"] = AgentIdentity(
+            name="approval_pending",
+            role="approval_router",
+            permissions=[]
+        )
+
 
         
     def get_identity(self, node_name: str) -> Optional[AgentIdentity]:

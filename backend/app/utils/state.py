@@ -33,3 +33,10 @@ class AgentState(TypedDict):
     # Security Context (Identity & Audit)
     agent_identity: dict
     security_context: dict
+    
+    # HITL Approval Workflow
+    requires_approval: bool
+    approval_status: Optional[str]  # 'pending', 'approved', 'rejected'
+    approval_request_id: Optional[str]
+    sensitive_tables: Optional[List[str]]
+
