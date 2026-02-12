@@ -1,0 +1,111 @@
+"""
+NeMo Guardrails integration for input and output validation.
+"""
+
+import os
+from typing import Optional, Tuple
+from nemoguardrails import RailsConfig, LLMRails
+from app.config import settings
+
+
+class GuardrailManager:
+    """
+    Manages input and output guardrails using NeMo Guardrails.
+    """
+    
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize guardrails with configuration.
+        
+        Args:
+            config_path: Path to rails config directory (default: backend/config/rails)
+        """
+        if config_path is None:
+            config_path = os.path.join(settings.BASE_DIR, "config", "rails")
+        
+        try:
+            self.config = RailsConfig.from_path(config_path)
+            self.rails = LLMRails(self.config)
+            print(f"✅ Guardrails initialized from {config_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to initialize guardrails: {e}")
+            self.rails = None
+    
+    def validate_input(self, user_input: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate user input against guardrails.
+        
+        Args:
+            user_input: The user's query/input
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if input passes guardrails, False otherwise
+            - error_message: Explanation if blocked, None if allowed
+        """
+        if not self.rails:
+            # Fail-open if guardrails not initialized
+            return True, None
+        
+        try:
+            # Check for jailbreak attempts
+            response = self.rails.generate(
+                messages=[{"role": "user", "content": user_input}]
+            )
+            
+            # If NeMo blocks the input, it returns a refusal message
+            if response and "cannot" in response.get("content", "").lower():
+                return False, "Your request cannot be processed due to safety guidelines."
+            
+            return True, None
+            
+        except Exception as e:
+            print(f"⚠️ Input validation failed: {e}")
+            # Fail-open for availability
+            return True, None
+    
+    def validate_output(self, bot_response: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate LLM output against guardrails.
+        
+        Args:
+            bot_response: The LLM's generated response
+            
+        Returns:
+            Tuple of (is_valid, replacement_message)
+            - is_valid: True if output passes guardrails, False otherwise
+            - replacement_message: Safe message to return if blocked, None if allowed
+        """
+        if not self.rails:
+            # Fail-open if guardrails not initialized
+            return True, None
+        
+        try:
+            # Simple heuristic: check for harmful patterns
+            harmful_patterns = [
+                "hack", "exploit", "illegal", "steal", "fraud",
+                "violence", "weapon", "drug"
+            ]
+            
+            lower_response = bot_response.lower()
+            for pattern in harmful_patterns:
+                if pattern in lower_response:
+                    return False, "I cannot provide that information as it may be harmful or inappropriate."
+            
+            return True, None
+            
+        except Exception as e:
+            print(f"⚠️ Output validation failed: {e}")
+            # Fail-open for availability
+            return True, None
+
+
+# Global instance for reuse
+_guardrail_manager = None
+
+def get_guardrail_manager() -> GuardrailManager:
+    """Get or create the global guardrail manager instance."""
+    global _guardrail_manager
+    if _guardrail_manager is None:
+        _guardrail_manager = GuardrailManager()
+    return _guardrail_manager

@@ -53,10 +53,59 @@ from app.agents.chart import chart_node
 from app.agents.format import format_node
 from app.agents.rag_retrieve import retrieve_node
 from app.agents.rag_generate import rag_gen_node
+from app.utils.guardrails import get_guardrail_manager
+
+# Guardrail Nodes
+def input_guardrail_node(state):
+    """Validate user input before processing."""
+    print("🛡️ Checking input guardrails...")
+    guardrails = get_guardrail_manager()
+    question = state.get("question", "")
+    
+    is_valid, error_msg = guardrails.validate_input(question)
+    
+    if not is_valid:
+        print(f"❌ Input blocked by guardrails: {error_msg}")
+        return {
+            "error": error_msg,
+            "intent": "blocked"
+        }
+    
+    print("✅ Input passed guardrails")
+    return {}
+
+def output_guardrail_node(state):
+    """Validate LLM output before returning to user."""
+    print("🛡️ Checking output guardrails...")
+    guardrails = get_guardrail_manager()
+    
+    # Get the final response from messages
+    messages = state.get("messages", [])
+    if not messages:
+        return {}
+    
+    last_msg = messages[-1]
+    if hasattr(last_msg, "content"):
+        last_message = last_msg.content
+    else:
+        last_message = str(last_msg)
+    
+    is_valid, replacement_msg = guardrails.validate_output(last_message)
+    
+    if not is_valid:
+        print(f"❌ Output blocked by guardrails")
+        from langchain_core.messages import AIMessage
+        return {
+            "messages": [AIMessage(content=replacement_msg)]
+        }
+    
+    print("✅ Output passed guardrails")
+    return {}
 
 workflow = StateGraph(AgentState)
 
 # Add Nodes
+workflow.add_node("input_guardrail", trace_node("input_guardrail", input_guardrail_node))
 workflow.add_node("orchestrator", trace_node("orchestrator", orchestrator_node))
 workflow.add_node("schema", trace_node("schema", fetch_schema_node))
 workflow.add_node("planner", trace_node("planner", planner_node))
@@ -67,14 +116,30 @@ workflow.add_node("evaluate", trace_node("evaluate", evaluate_node))
 workflow.add_node("retry", trace_node("retry", retry_node))
 workflow.add_node("chart", trace_node("chart", chart_node))
 workflow.add_node("format", trace_node("format", format_node))
+workflow.add_node("output_guardrail", trace_node("output_guardrail", output_guardrail_node))
 
 workflow.add_node("retrieve", trace_node("retrieve", retrieve_node))
 workflow.add_node("rag_gen", trace_node("rag_gen", rag_gen_node))
 
-# Entry
-workflow.set_entry_point("orchestrator")
+# Entry - Start with input guardrail
+workflow.set_entry_point("input_guardrail")
 
 # Edges
+def route_input_guardrail(state):
+    """Route based on guardrail result."""
+    if state.get('intent') == 'blocked':
+        return 'format'  # Go directly to format with error message
+    return 'orchestrator'
+
+workflow.add_conditional_edges(
+    "input_guardrail",
+    route_input_guardrail,
+    {
+        "orchestrator": "orchestrator",
+        "format": "format"
+    }
+)
+
 def route_orchestrator(state):
     return state.get('intent', 'general')
 
@@ -119,6 +184,9 @@ def route_retry(state):
     return "generate"
 
 workflow.add_conditional_edges("retry", route_retry, {"generate": "generate", "format": "format"})
-workflow.add_edge("format", END)
+
+# Add output guardrail before END
+workflow.add_edge("format", "output_guardrail")
+workflow.add_edge("output_guardrail", END)
 
 graph = workflow.compile()

@@ -1,0 +1,27 @@
+models:
+  - type: main
+    engine: google
+    model: gemini-2.0-flash
+
+rails:
+  input:
+    flows:
+      - check jailbreak
+      - check input moderation
+  
+  output:
+    flows:
+      - check output moderation
+
+# Input guardrails
+input_rails:
+  - name: check jailbreak
+    description: Detect jailbreak attempts
+    
+  - name: check input moderation
+    description: Check for inappropriate content in user input
+
+# Output guardrails
+output_rails:
+  - name: check output moderation
+    description: Ensure LLM outputs are safe and appropriate

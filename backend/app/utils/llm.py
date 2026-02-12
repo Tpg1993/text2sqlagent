@@ -1,7 +1,7 @@
 from typing import Any, Dict
 from langchain_openai import ChatOpenAI
 # from langchain_google_genai import ChatGoogleGenerativeAI # Deprecated/Broken for this key
-from google import genai
+from google import genai  # Required for direct API usage
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from app.config import settings
@@ -57,52 +57,52 @@ def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any]) -> str
             span.record_exception(e)
             span.set_status(trace.Status(trace.StatusCode.ERROR))
             print(f"❌ Gemini call failed: {e}")
-        logger.error(f"Gemini call failed: {e}")
-        
-        # Check for Gemini Rate Limit
-        gemini_retry_after = None
-        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-            import re
-            match = re.search(r"retryDelay': '([\d\.]+)s'", str(e))
-            if match:
-                gemini_retry_after = match.group(1)
+            logger.error(f"Gemini call failed: {e}")
             
-            # Fail FAST on Rate Limit: Do not try fallback
-            from app.utils.exceptions import RateLimitException
-            raise RateLimitException(
-                message=f"Rate limit exceeded. Please try again in {gemini_retry_after or '60'} seconds.",
-                retry_after=gemini_retry_after
-            )
-        
-        # Fallback to OpenAI only if Gemini fails for other reasons (and not rate limit)
-        # print(" Falling back to OpenAI...")
-        # logger.info("Falling back to OpenAI...")
-        
-        # try:
-        #     if not settings.OPENAI_API_KEY:
-        #         raise ValueError("OPENAI_API_KEY is not set")
+            # Check for Gemini Rate Limit
+            gemini_retry_after = None
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                import re
+                match = re.search(r"retryDelay': '([\d\.]+)s'", str(e))
+                if match:
+                    gemini_retry_after = match.group(1)
                 
-        #     llm = ChatOpenAI(
-        #         model=settings.LLM_MODEL, 
-        #         temperature=0, 
-        #         api_key=settings.OPENAI_API_KEY
-        #     )
-        #     chain = chain_factory(llm)
-        #     return chain.invoke(input_data)
+                # Fail FAST on Rate Limit: Do not try fallback
+                from app.utils.exceptions import RateLimitException
+                raise RateLimitException(
+                    message=f"Rate limit exceeded. Please try again in {gemini_retry_after or '60'} seconds.",
+                    retry_after=gemini_retry_after
+                )
             
-        # except Exception as openai_error:
-        #     print(f"❌ OpenAI fallback also failed: {openai_error}")
-        #     logger.error(f"OpenAI fallback failed: {openai_error}")
+            # Fallback to OpenAI only if Gemini fails for other reasons (and not rate limit)
+            # print(" Falling back to OpenAI...")
+            # logger.info("Falling back to OpenAI...")
             
-        #     # If we had a Gemini rate limit (redundant check but safe)
-        #     if gemini_retry_after:
-        #         from app.utils.exceptions import RateLimitException
-        #         raise RateLimitException(
-        #             message=f"Rate limit exceeded. Please try again in {gemini_retry_after} seconds.",
-        #             retry_after=gemini_retry_after
-        #         )
+            # try:
+            #     if not settings.OPENAI_API_KEY:
+            #         raise ValueError("OPENAI_API_KEY is not set")
+                    
+            #     llm = ChatOpenAI(
+            #         model=settings.LLM_MODEL, 
+            #         temperature=0, 
+            #         api_key=settings.OPENAI_API_KEY
+            #     )
+            #     chain = chain_factory(llm)
+            #     return chain.invoke(input_data)
+                
+            # except Exception as openai_error:
+            #     print(f"❌ OpenAI fallback also failed: {openai_error}")
+            #     logger.error(f"OpenAI fallback failed: {openai_error}")
+                
+            #     # If we had a Gemini rate limit (redundant check but safe)
+            #     if gemini_retry_after:
+            #         from app.utils.exceptions import RateLimitException
+            #         raise RateLimitException(
+            #             message=f"Rate limit exceeded. Please try again in {gemini_retry_after} seconds.",
+            #             retry_after=gemini_retry_after
+            #         )
+                
+            #     raise openai_error
             
-        #     raise openai_error
-        
-        # If fallback is disabled, just re-raise the Gemini error
-        raise e
+            # If fallback is disabled, just re-raise the Gemini error
+            raise e
