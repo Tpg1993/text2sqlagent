@@ -132,3 +132,22 @@ INFO:app.utils.security:⛔ [Security] Access Denied: Agent 'orchestrator' does 
 ✅ TEST PASSED
 ```
 
+## Final Security Role Matrix
+
+The following roles are now **Active** and **Enforced** in `app/utils/security.py`:
+
+| Agent Node | Role | Permissions | Purpose |
+| :--- | :--- | :--- | :--- |
+| `orchestrator` | `router` | `ROUTE_REQUEST` | Decides next step, cannot execute/read DB. |
+| `schema` | `metadata_reader` | *(None)* | Read-only access to schema info. |
+| `planner` | `planner` | `PLAN_QUERY` | Creates execution plan, no DB access. |
+| `generate` | `sql_writer` | `GENERATE_SQL` | Writes SQL strings, **cannot execute**. |
+| `validate` | `security_audit` | `VALIDATE_SQL` | Checks SQL for safety (DROP/DELETE). |
+| `execute` | `db_admin` | `EXECUTE_SQL` | **Only agent** that can run queries. |
+| `evaluate` | `auditor` | *(None)* | Checks results quality. |
+| `retrieve` | `knowledge_seeker` | `READ_VECTOR_DB` | Accesses vector store for docs. |
+| `rag_gen` | `writer` | `GENERATE_RAG_ANSWER` | Synthesizes answers from docs. |
+| `chart` | `analyst` | `GENERATE_CHART` | Creates visualizations. |
+| `format` | `frontend_interface` | `FORMAT_RESPONSE` | Formats final JSON for UI. |
+
+
