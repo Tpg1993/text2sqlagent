@@ -93,3 +93,23 @@ This document outlines the advanced security controls implemented in the Agentic
     *   State is created fresh for every request.
     *   No shared global variables for user data.
     *   Memory is strictly typed (`TypedDict`) to prevent schema corruption.
+
+---
+
+## 6. Memory & State Protection
+
+### **Name: Ephemeral State Isolation**
+*   **Prevents**: Session Hijacking, Cross-User Data Leakage, long-term memory corruption.
+*   **Uses**: Per-request `AgentState` instantiation in `app/main.py` and `LangGraph`.
+*   **Remediation**:
+    *   State is created fresh for **every single request**.
+    *   No shared global variables or persistent memory structures that can be corrupted across sessions.
+    *   Memory is strictly typed (`TypedDict`) to prevent schema corruption or "parameter pollution" attacks.
+
+### **Name: Immutable History (Append-Only)**
+*   **Prevents**: History Tampering by Hallucinating Agents.
+*   **Uses**: `LangGraph` message handling.
+*   **Remediation**:
+    *   The message history `messages` is append-only for the duration of the request.
+    *   Agents cannot rewrite past messages or inject fake user commands into the history.
+
