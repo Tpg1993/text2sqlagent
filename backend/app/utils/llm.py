@@ -48,10 +48,17 @@ def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: 
                 return AIMessage(content=response.text)
     
             # Wrap in RunnableLambda so it supports "|" operator
-            llm = RunnableLambda(gemini_runner)
+            llm = RunnableLambda(gemini_runner, name="Gemini Call")
             
             chain = chain_factory(llm)
-            result = chain.invoke(input_data, config={"run_name": name, "tags": tags})
+            result = chain.invoke(
+                input_data, 
+                config={
+                    "run_name": name, 
+                    "tags": tags,
+                    "metadata": {"tags": tags, "agent": name}
+                }
+            )
             print(f"✅ Gemini response received")
             return result
             
