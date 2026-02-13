@@ -6,8 +6,7 @@ import sys
 import os
 
 # Add backend to path
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.config import settings
 

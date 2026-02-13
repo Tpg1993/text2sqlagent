@@ -6,8 +6,12 @@ import requests
 import sys
 import time
 
-# Use port 8002 for our test instance
-BASE_URL = "http://localhost:8002/api/v1"
+# Add backend to path (parent directory of 'tests')
+# Add backend to path (parent directory of 'tests')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Use port 8000 for standard instance
+BASE_URL = "http://localhost:8000/api/v1"
 
 def test_auth():
     print("=" * 60)

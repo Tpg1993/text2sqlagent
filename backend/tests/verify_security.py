@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # Add backend to path
-sys.path.append(os.path.join(os.getcwd(), 'backend'))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.utils.security import security_manager, Permission, AgentIdentity
 from app.graphs.agent_graph import graph
