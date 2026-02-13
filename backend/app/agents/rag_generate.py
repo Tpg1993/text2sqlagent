@@ -11,5 +11,10 @@ def rag_gen_node(state: AgentState):
     def create_chain(llm):
         return ChatPromptTemplate.from_template(RAG_PROMPT) | llm | StrOutputParser()
 
-    ans = invoke_chain_with_fallback(create_chain, {"context": docs_content, "question": state['question']})
+    ans = invoke_chain_with_fallback(
+        create_chain, 
+        {"context": docs_content, "question": state['question']},
+        name="RAG Answer Generator",
+        tags=["rag", "generation"]
+    )
     return {"rag_answer": ans}

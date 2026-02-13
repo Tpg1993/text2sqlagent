@@ -21,7 +21,12 @@ def orchestrator_node(state: AgentState):
     def chain_factory(llm):
         return ChatPromptTemplate.from_template(ORCHESTRATOR_PROMPT) | llm | StrOutputParser()
         
-    intent = invoke_chain_with_fallback(chain_factory, {"question": state['question']}).strip().lower()
+    intent = invoke_chain_with_fallback(
+        chain_factory, 
+        {"question": state['question']}, 
+        name="Orchestrator Agent",
+        tags=["orchestrator", "routing"]
+    ).strip().lower()
     
     # Fallback / Cleaning
     if "sql" in intent: intent = "sql"

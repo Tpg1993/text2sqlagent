@@ -13,7 +13,10 @@ def chart_node(state: AgentState):
     CHART_PROMPT = """Suggest a Recharts JSON config (type: bar|line|pie, data, xKey, yKey, title) for: {question} \n Data: {result}"""
     llm = ChatOpenAI(model=settings.LLM_MODEL, temperature=0, api_key=settings.OPENAI_API_KEY, model_kwargs={"response_format": {"type": "json_object"}})
     try:
-        res = llm.invoke(CHART_PROMPT.format(question=state['question'], result=str(state['sql_result'])[:1000]))
+        res = llm.invoke(
+            CHART_PROMPT.format(question=state['question'], result=str(state['sql_result'])[:1000]),
+            config={"run_name": "Chart Generator Agent", "tags": ["chart", "visualization"]}
+        )
         spec = json.loads(res.content)
         return {"visualization_spec": spec}
     except:

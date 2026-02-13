@@ -34,7 +34,12 @@ def generate_plan(schema: str, question: str) -> str:
     def create_chain(llm):
         return ChatPromptTemplate.from_template(PLANNER_PROMPT) | llm | StrOutputParser()
         
-    return invoke_chain_with_fallback(create_chain, {"schema": schema, "question": question})
+    return invoke_chain_with_fallback(
+        create_chain, 
+        {"schema": schema, "question": question},
+        name="SQL Planner Agent",
+        tags=["sql", "planning"]
+    )
 
 def generate_sql_query(schema: str, plan: str, question: str, previous_error: Optional[str] = None, previous_query: Optional[str] = None) -> str:
     error_context = ""
@@ -44,10 +49,15 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
     def create_chain(llm):
         return ChatPromptTemplate.from_template(GEN_SQL_PROMPT) | llm | StrOutputParser()
         
-    sql = invoke_chain_with_fallback(create_chain, {
-        "schema": schema, 
-        "plan": plan, 
-        "question": question,
-        "error_context": error_context
-    })
+    sql = invoke_chain_with_fallback(
+        create_chain, 
+        {
+            "schema": schema, 
+            "plan": plan, 
+            "question": question,
+            "error_context": error_context
+        },
+        name="SQL Generator Agent",
+        tags=["sql", "generation"]
+    )
     return sql.replace("```sql", "").replace("```", "").strip()

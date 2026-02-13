@@ -15,11 +15,13 @@ from opentelemetry import trace
 
 tracer = trace.get_tracer(__name__)
 
-def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any]) -> str:
+def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: str = "LLM Chain", tags: list = None) -> str:
     """
     Invokes a chain using Gemini (primary) with OpenAI as fallback.
+    Supports LangSmith tracing with custom name and tags.
     """
-    with tracer.start_as_current_span("invoke_chain_with_fallback") as span:
+    tags = tags or []
+    with tracer.start_as_current_span(name) as span:
         # Use Gemini as primary
         try:
             print(f"🔵 Using Gemini model {settings.GEMINI_MODEL}...")
@@ -49,7 +51,7 @@ def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any]) -> str
             llm = RunnableLambda(gemini_runner)
             
             chain = chain_factory(llm)
-            result = chain.invoke(input_data)
+            result = chain.invoke(input_data, config={"run_name": name, "tags": tags})
             print(f"✅ Gemini response received")
             return result
             
