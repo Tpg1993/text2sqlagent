@@ -2,15 +2,22 @@ export async function chat(message, onProgress) {
     // Generate session ID
     const sessionId = crypto.randomUUID();
 
+    // Get token from storage
+    const token = localStorage.getItem('token');
+
     // Connect to SSE stream for progress updates
     let eventSource = null;
     if (onProgress) {
-        eventSource = new EventSource(`/api/v1/stream/${sessionId}`);
+        const API_BASE_URL = '/api/v1'; // Assuming this base URL based on existing code
+        eventSource = new EventSource(`${API_BASE_URL}/stream/${sessionId}?token=${token}`);
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.event === 'progress') {
                     onProgress(data.data.message);
+                } else if (data.event === 'approval_result') {
+                    onProgress(data.data); // Reuse callback or add new one?
+                    // Better to pass whole object so UI can distinguish
                 }
             } catch (e) {
                 console.error('SSE parse error:', e);
@@ -21,11 +28,17 @@ export async function chat(message, onProgress) {
         };
     }
 
+    // Token already retrieved above
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch('/api/v1/chat', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify({ message, session_id: sessionId }),
     });
 
@@ -48,8 +61,14 @@ export async function chat(message, onProgress) {
     const result = await response.json();
 
     // Close SSE connection
+    // Close SSE connection only if NOT pending approval
     if (eventSource) {
-        setTimeout(() => eventSource.close(), 100);
+        if (result.approval_status !== 'pending') {
+            setTimeout(() => eventSource.close(), 100);
+        } else {
+            // Keep it open for approval result
+            console.log("Keeping SSE open for approval...");
+        }
     }
 
     return result;

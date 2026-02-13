@@ -7,7 +7,7 @@ import os
 import asyncio
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.getcwd(), 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend'))
 
 from app.graphs.agent_graph import graph
 from app.utils.hitl import approval_manager

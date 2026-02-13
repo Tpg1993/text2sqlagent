@@ -102,6 +102,10 @@ class Config:
         
         self.OTEL_SERVICE_NAME = self.get_secret("OTEL_SERVICE_NAME", default="agenthic-text2sql-backend")
         self.OTEL_EXPORTER_OTLP_ENDPOINT = self.get_secret("OTEL_EXPORTER_OTLP_ENDPOINT", default="")
+        
+        # Auth
+        self.ADMIN_PASSWORD = self.get_secret("ADMIN_PASSWORD", default="admin@123")
+        self.USER1_PASSWORD = self.get_secret("USER1_PASSWORD", default="user1@123")
 
 # Singleton instance
 settings = Config()

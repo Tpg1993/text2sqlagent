@@ -20,7 +20,8 @@ def validate_node(state: AgentState):
         approval_request = approval_manager.create_approval_request(
             query=sql,
             sensitive_tables=sensitive_tables,
-            user_id=state.get('session_id')
+            user_id=state.get('user_id'),
+            session_id=state.get('session_id')
         )
         
         return {

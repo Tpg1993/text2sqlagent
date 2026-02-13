@@ -28,7 +28,6 @@ class PIIScrubber:
             "US_PASSPORT",
             "PERSON",
             "LOCATION",
-            "DATE_TIME",
             "IBAN_CODE",
             "IP_ADDRESS",
             "URL",

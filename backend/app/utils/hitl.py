@@ -24,6 +24,7 @@ class ApprovalRequest:
     status: ApprovalStatus
     user_id: Optional[str] = None
     reason: Optional[str] = None
+    session_id: Optional[str] = None
     
     def to_dict(self):
         return {
@@ -33,7 +34,8 @@ class ApprovalRequest:
             "timestamp": self.timestamp.isoformat(),
             "status": self.status.value,
             "user_id": self.user_id,
-            "reason": self.reason
+            "reason": self.reason,
+            "session_id": self.session_id
         }
 
 class ApprovalManager:
@@ -73,7 +75,8 @@ class ApprovalManager:
         self, 
         query: str, 
         sensitive_tables: List[str],
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None
     ) -> ApprovalRequest:
         """Create a new approval request."""
         request = ApprovalRequest(
@@ -82,7 +85,8 @@ class ApprovalManager:
             sensitive_tables=sensitive_tables,
             timestamp=datetime.now(),
             status=ApprovalStatus.PENDING,
-            user_id=user_id
+            user_id=user_id,
+            session_id=session_id
         )
         
         self._pending_requests[request.request_id] = request

@@ -10,7 +10,10 @@ class SSEManager:
         self.queues: Dict[str, asyncio.Queue] = {}
     
     def create_session(self, session_id: str) -> asyncio.Queue:
-        """Create a new SSE session queue."""
+        """Create a new SSE session queue or return existing."""
+        if session_id in self.queues:
+            return self.queues[session_id]
+            
         queue = asyncio.Queue()
         self.queues[session_id] = queue
         return queue
@@ -27,7 +30,9 @@ class SSEManager:
         """Stream events for a session."""
         queue = self.queues.get(session_id)
         if not queue:
-            return
+            # Create session if it doesn't exist yet (handles race condition)
+            queue = asyncio.Queue()
+            self.queues[session_id] = queue
         
         try:
             while True:

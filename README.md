@@ -279,6 +279,18 @@ Expected: Request blocked with safety message.
 - `GET /sse/{session_id}` - Server-Sent Events for progress
 - `GET /health` - Health check
 
+## 🔐 User Roles & Credentials (Mock Auth)
+
+The current implementation uses a mock authentication system for demonstration purposes. It accepts **any password** but assigns roles based on the username.
+
+| Username | Password | Role | Description |
+| :--- | :--- | :--- | :--- |
+| `admin` | `admin@123` | `admin` | Has administrative privileges (e.g., approving HITL requests) |
+| `user1` | `user1@123` | `user` | Specific user with configured password |
+| `user`, `test`, etc. | *(any)* | `user` | Standard user access (Guest) |
+
+> **Note:** In a production environment, this would be replaced with a real database lookup and password hashing verification.
+
 ## 🔍 Observability
 
 The application uses **OpenTelemetry** for tracing:

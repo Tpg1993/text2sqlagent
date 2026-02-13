@@ -183,10 +183,22 @@ class SecurityManager:
                 # We inject the current agent's identity into the state for downstream awareness
                 # This mimics passing a "Security Token" along the chain
                 if isinstance(state, dict):
+                    # Check for user authentication (JWT)
+                    user_id = state.get("user_id")
+                    user_role = state.get("user_role")
+                    
+                    # If this is an entry point from the API, ensure checks passed
+                    if not user_id and node_name == "orchestrator":
+                         # In a real scenario, we might block here. 
+                         # For now, we log it. The main API should have enforced this.
+                         logger.warning(f"⚠️ [Security] Request to orchestrator missing user context!")
+
                     state["security_context"] = {
                         "current_agent": identity.name,
                         "role": identity.role,
-                        "permissions": [p.value for p in identity.permissions]
+                        "permissions": [p.value for p in identity.permissions],
+                        "user_id": user_id,
+                        "user_role": user_role
                     }
                 
                 logger.info(f"✅ [Security] Allowed: {node_name} (Role: {identity.role})")
