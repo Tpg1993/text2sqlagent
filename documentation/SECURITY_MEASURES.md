@@ -6,7 +6,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: Unique Agent Identities**
 *   **Prevents**: Identity Spoofing, Unauthorized Access.
-*   **Uses**: `AgentIdentity` class in `app/utils/security.py`.
+*   **Uses**: `AgentIdentity` class in [app/utils/security.py](../backend/app/utils/security.py).
 *   **Remediation**: Every agent node (`generate`, `execute`, `retrieve`) is assigned a cryptographic-like identity with a specific **Role** (e.g., `sql_writer`, `db_admin`) upon initialization. This strictly defines "Who is acting".
 
 ### **Name: Role-Based Access Control (RBAC)**
@@ -24,7 +24,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: Security Middleware Interception**
 *   **Prevents**: Bypass of Security Controls, "Shadow AI" execution.
-*   **Uses**: `SecurityManager.enforce()` decorator in `app/graphs/agent_graph.py`.
+*   **Uses**: `SecurityManager.enforce()` decorator in [app/graphs/agent_graph.py](../backend/app/graphs/agent_graph.py).
 *   **Remediation**:
     *   Every single node execution in the graph is wrapped by the Security Manager.
     *   **Zero-Trust**: No code runs until the middleware verifies the agent's identity and checks its permissions against the policy.
@@ -32,7 +32,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: Context Injection & Auditability**
 *   **Prevents**: Lack of Non-Repudiation (inability to prove who did what).
-*   **Uses**: `AgentState` updates in `app/utils/state.py`.
+*   **Uses**: `AgentState` updates in [app/utils/state.py](../backend/app/utils/state.py).
 *   **Remediation**:
     *   The middleware injects a `security_context` (containing `agent_id`, `role`, `permissions`) into the state for every step.
     *   This ensures that every action in the logs can be traced back to a specific, authorized agent identity.
@@ -43,7 +43,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: Input Guardrails**
 *   **Prevents**: Prompt Injection, Jailbreaking, Harmful Content.
-*   **Uses**: NeMo Guardrails (`app/utils/guardrails.py`, `config/rails/prompts.yml`).
+*   **Uses**: NeMo Guardrails ([app/utils/guardrails.py](../backend/app/utils/guardrails.py), [config/rails/prompts.yml](../backend/config/rails/prompts.yml)).
 *   **Remediation**:
     *   User input is scanned for jailbreak attempts *before* it reaches the Orchestrator.
     *   Restricted topics or malicious patterns are blocked immediately with a 400 Bad Request or a standard refusal message.
@@ -61,7 +61,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: SQL Static Analysis**
 *   **Prevents**: Destructive SQL Commands (`DROP`, `DELETE`, `ALTER`).
-*   **Uses**: `validate_node` in `app/agents/validate.py`.
+*   **Uses**: `validate_node` in [app/agents/validate.py](../backend/app/agents/validate.py).
 *   **Remediation**:
     *   Before any SQL is executed, the generated string is parsed.
     *   Keywords like `DROP TABLE`, `DELETE FROM`, or `ALTER USER` trigger an instant validation failure.
@@ -81,7 +81,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: API Rate Limiting**
 *   **Prevents**: Denial of Service (DoS), Resource Exhaustion.
-*   **Uses**: Custom Rate Limit middleware in `app/main.py`.
+*   **Uses**: Custom Rate Limit middleware in [app/main.py](../backend/app/main.py).
 *   **Remediation**:
     *   Tracks requests per user/IP.
     *   If limits are exceeded, returns a `429 Too Many Requests` status with a `Retry-After` header, protecting the backend from being overwhelmed.
@@ -100,7 +100,7 @@ This document outlines the advanced security controls implemented in the Agentic
 
 ### **Name: Ephemeral State Isolation**
 *   **Prevents**: Session Hijacking, Cross-User Data Leakage, long-term memory corruption.
-*   **Uses**: Per-request `AgentState` instantiation in `app/main.py` and `LangGraph`.
+*   **Uses**: Per-request `AgentState` instantiation in [app/main.py](../backend/app/main.py) and `LangGraph`.
 *   **Remediation**:
     *   State is created fresh for **every single request**.
     *   No shared global variables or persistent memory structures that can be corrupted across sessions.
@@ -112,4 +112,3 @@ This document outlines the advanced security controls implemented in the Agentic
 *   **Remediation**:
     *   The message history `messages` is append-only for the duration of the request.
     *   Agents cannot rewrite past messages or inject fake user commands into the history.
-

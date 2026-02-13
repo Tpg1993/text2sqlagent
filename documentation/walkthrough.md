@@ -8,7 +8,7 @@ Successfully implemented **NeMo Guardrails** for input/output validation and **M
 
 ### 1. Dependencies Added
 
-Updated [requirements.txt](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/requirements.txt):
+Updated [requirements.txt](../backend/requirements.txt):
 ```
 nemoguardrails
 presidio-analyzer
@@ -18,12 +18,12 @@ spacy
 
 ### 2. PII Detection (Presidio)
 
-#### [NEW] [app/utils/pii.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/app/utils/pii.py)
-- Created [PIIScrubber](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/pii.py#12-107) class using Microsoft Presidio
+#### [NEW] [app/utils/pii.py](../backend/app/utils/pii.py)
+- Created [PIIScrubber](../backend/app/utils/pii.py#L12-L107) class using Microsoft Presidio
 - Detects and anonymizes: emails, phone numbers, SSNs, credit cards, names, locations, etc.
 - Replaces PII with placeholders: `<EMAIL_ADDRESS>`, `<PHONE_NUMBER>`, etc.
 
-#### [MODIFIED] [app/rag/ingest.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/app/rag/ingest.py)
+#### [MODIFIED] [app/rag/ingest.py](../backend/app/rag/ingest.py)
 - Integrated PII scrubbing **before** creating embeddings
 - Scrubs all document chunks before storing in FAISS vector database
 - Logs count of documents containing PII
@@ -38,17 +38,17 @@ for doc in splits:
 ### 3. Guardrails (NeMo)
 
 #### [NEW] Configuration Files
-- [config/rails/config.yml](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/config/rails/config.yml) - Defines input/output rails
-- [config/rails/prompts.yml](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/config/rails/prompts.yml) - Validation prompts
+- [config/rails/config.yml](../backend/config/rails/config.yml) - Defines input/output rails
+- [config/rails/prompts.yml](../backend/config/rails/prompts.yml) - Validation prompts
 
-#### [NEW] [app/utils/guardrails.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/app/utils/guardrails.py)
-- Created [GuardrailManager](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/guardrails.py#11-101) class
-- [validate_input()](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/guardrails.py#34-66) - Checks for jailbreak attempts and inappropriate content
-- [validate_output()](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/guardrails.py#67-101) - Ensures LLM responses are safe
+#### [NEW] [app/utils/guardrails.py](../backend/app/utils/guardrails.py)
+- Created [GuardrailManager](../backend/app/utils/guardrails.py#L11-L101) class
+- [validate_input()](../backend/app/utils/guardrails.py#L34-L66) - Checks for jailbreak attempts and inappropriate content
+- [validate_output()](../backend/app/utils/guardrails.py#L67-L101) - Ensures LLM responses are safe
 
-#### [MODIFIED] [app/graphs/agent_graph.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql rag/backend/app/graphs/agent_graph.py)
-- Added [input_guardrail_node](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/graphs/agent_graph.py#59-76) at entry point
-- Added [output_guardrail_node](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/graphs/agent_graph.py#77-104) before END
+#### [MODIFIED] [app/graphs/agent_graph.py](../backend/app/graphs/agent_graph.py)
+- Added [input_guardrail_node](../backend/app/graphs/agent_graph.py#L59-L76) at entry point
+- Added [output_guardrail_node](../backend/app/graphs/agent_graph.py#L77-L104) before END
 - Updated flow: `input_guardrail → orchestrator → ... → format → output_guardrail → END`
 
 **New Flow**:
@@ -78,7 +78,7 @@ graph LR
 
 ### 1. Install Dependencies
 
-The dependencies have been added to [requirements.txt](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/requirements.txt). To complete installation:
+The dependencies have been added to [requirements.txt](../backend/requirements.txt). To complete installation:
 
 ```powershell
 cd backend
@@ -133,12 +133,12 @@ The output guardrail automatically validates all LLM responses for harmful conte
 ## Verification & Bug Fixes
 During the startup phase, several issues were identified and resolved:
 1.  **Dependency Conflicts**: Resolved `langchain-core` vs `langchain-google-genai` version mismatches by upgrading to `langchain-core==0.3.31`.
-2.  **Import Errors**: Fixed incorrect imports in [llm.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/llm.py) (`google.genai` vs `langchain_google_genai`).
+2.  **Import Errors**: Fixed incorrect imports in [llm.py](../backend/app/utils/llm.py) (`google.genai` vs `langchain_google_genai`).
 3.  **Logic Errors**: 
-    - Fixed `UnboundLocalError` in [llm.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/llm.py) error handling.
-    - Fixed `AttributeError` in [agent_graph.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/graphs/agent_graph.py) to handle both string and object messages in guardrails.
-    - Fixed `KeyError: 'documents'` in [rag_retrieve.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/agents/rag_retrieve.py).
-    - Added "General" intent handling in [format.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/agents/format.py).
+    - Fixed `UnboundLocalError` in [llm.py](../backend/app/utils/llm.py) error handling.
+    - Fixed `AttributeError` in [agent_graph.py](../backend/app/graphs/agent_graph.py) to handle both string and object messages in guardrails.
+    - Fixed `KeyError: 'documents'` in [rag_retrieve.py](../backend/app/agents/rag_retrieve.py).
+    - Added "General" intent handling in [format.py](../backend/app/agents/format.py).
 4.  **Verification**: 
     - Verified backend API health.
     - Confirmed SQL flow execution.
