@@ -33,7 +33,12 @@ stateDiagram-v2
     
     Orchestrator --> SQLFlow: intent=sql
     Orchestrator --> RAGFlow: intent=rag
-    Orchestrator --> Format: intent=general
+    Orchestrator --> GeneralAgent: intent=general
+    
+    state GeneralAgent {
+        [*] --> SearchTool
+        SearchTool --> [*]
+    }
     
     state SQLFlow {
         [*] --> Schema
@@ -61,6 +66,7 @@ stateDiagram-v2
     
     SQLFlow --> Format
     RAGFlow --> Format
+    GeneralAgent --> Format
     
     Format --> OutputGuardrail
     OutputGuardrail --> [*]
@@ -160,9 +166,14 @@ flowchart TD
     end
     
     subgraph Processing["Agent Processing"]
-        P1[Orchestrator] --> P2[SQL/RAG/General]
-        P2 --> P3[LLM Generation]
-        P3 --> P4[Format Response]
+        P1[Orchestrator] --> P2[SQL/RAG]
+        P1 --> P3[General Agent]
+        P3 --> P3a[Web Search Tool]
+        P2 --> P4[LLM Generation]
+        P3 --> P4
+        P4 --> P5[Format Response]
+        P4 --> P6[Chart Tool]
+        P6 --> P5
     end
     
     subgraph Output["Output Guardrail"]

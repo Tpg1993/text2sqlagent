@@ -16,7 +16,9 @@ AGENT_DISPLAY_NAMES = {
     "format": "✨ Formatting response...",
     "retrieve": "🔍 Searching documents...",
     "rag_gen": "💬 Generating answer...",
+    "rag_gen": "💬 Generating answer...",
     "retry": "🔄 Retrying...",
+    "general": "🌐 General Agent (Search)...",
 }
 
 # Helper to trace nodes and emit SSE events
@@ -54,6 +56,7 @@ from app.agents.format import format_node
 from app.agents.rag_retrieve import retrieve_node
 from app.agents.rag_generate import rag_gen_node
 from app.agents.approval import approval_pending_node
+from app.agents.general import general_node
 from app.utils.guardrails import get_guardrail_manager
 from app.utils.security import security_manager, Permission
 
@@ -180,6 +183,11 @@ workflow.add_node("approval_pending", trace_node("approval_pending",
     security_manager.enforce("approval_pending")(approval_pending_node)
 ))
 
+# General Agent (with Search)
+workflow.add_node("general", trace_node("general", 
+    security_manager.enforce("general")(general_node)
+))
+
 
 
 # Entry - Start with input guardrail
@@ -210,9 +218,14 @@ workflow.add_conditional_edges(
     {
         "sql": "schema",
         "rag": "retrieve",
-        "general": "format"
+        "sql": "schema",
+        "rag": "retrieve",
+        "general": "general"
     }
 )
+
+# General flow
+workflow.add_edge("general", "format")
 
 # RAG Flow
 workflow.add_edge("retrieve", "rag_gen")
