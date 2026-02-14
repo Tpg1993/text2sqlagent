@@ -25,7 +25,8 @@ def orchestrator_node(state: AgentState):
         chain_factory, 
         {"question": state['question']}, 
         name="Orchestrator Agent",
-        tags=["orchestrator", "routing"]
+        tags=["orchestrator", "routing"],
+        metadata={"session_id": state.get("session_id")}
     ).strip().lower()
     
     # Fallback / Cleaning

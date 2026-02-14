@@ -30,7 +30,7 @@ Write a SQL query to answer the user's question: {question}
 Return ONLY the SQL string. Do not use markdown backticks.
 """
 
-def generate_plan(schema: str, question: str) -> str:
+def generate_plan(schema: str, question: str, tags: Optional[list] = None, metadata: Optional[dict] = None) -> str:
     def create_chain(llm):
         return ChatPromptTemplate.from_template(PLANNER_PROMPT) | llm | StrOutputParser()
         
@@ -38,10 +38,11 @@ def generate_plan(schema: str, question: str) -> str:
         create_chain, 
         {"schema": schema, "question": question},
         name="SQL Planner Agent",
-        tags=["sql", "planning"]
+        tags=tags or ["sql", "planning"],
+        metadata=metadata
     )
 
-def generate_sql_query(schema: str, plan: str, question: str, previous_error: Optional[str] = None, previous_query: Optional[str] = None) -> str:
+def generate_sql_query(schema: str, plan: str, question: str, previous_error: Optional[str] = None, previous_query: Optional[str] = None, tags: Optional[list] = None, metadata: Optional[dict] = None) -> str:
     error_context = ""
     if previous_error and previous_query:
         error_context = f"IMPORTANT: The previous query `{previous_query}` failed with error: {previous_error}. Fix the query."
@@ -58,6 +59,7 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
             "error_context": error_context
         },
         name="SQL Generator Agent",
-        tags=["sql", "generation"]
+        tags=tags or ["sql", "generation"],
+        metadata=metadata
     )
     return sql.replace("```sql", "").replace("```", "").strip()

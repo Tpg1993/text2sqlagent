@@ -6,7 +6,7 @@ from langchain_core.tools import tool
 # Initialize the search run
 search = DuckDuckGoSearchRun()
 
-@tool
+@tool(parse_docstring=True, tags=["tool", "search", "duckduckgo"])
 def web_search(query: str) -> str:
     """
     Search the web for real-time information using DuckDuckGo.

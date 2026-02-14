@@ -32,7 +32,14 @@ def general_node(state: AgentState):
     messages = [{"role": "system", "content": SYS_PROMPT}] + state['messages']
     
     try:
-        response = llm_with_tools.invoke(messages)
+        response = llm_with_tools.invoke(
+            messages,
+            config={
+                "run_name": "General Agent",
+                "tags": ["general", "search"],
+                "metadata": {"session_id": state.get("session_id")}
+            }
+        )
         return {"messages": [response]}
     except Exception as e:
         print(f"General Agent Error: {e}")

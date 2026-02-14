@@ -1,5 +1,6 @@
 
 from typing import List, Optional, Dict, Any, Literal
+from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 class ChartSpec(BaseModel):
@@ -32,6 +33,7 @@ class ChartSpec(BaseModel):
         description="Optional list of hex color codes for the chart series."
     )
 
+@tool(parse_docstring=True, tags=["tool", "chart", "visualization"])
 def generate_chart_spec(
     chart_type: Literal["bar", "line", "pie", "area", "scatter"],
     title: str,

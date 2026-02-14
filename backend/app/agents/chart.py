@@ -34,7 +34,11 @@ def chart_node(state: AgentState):
         # Invoke LLM with tools
         msg = llm_with_tools.invoke(
             CHART_TOOL_PROMPT.format(question=state['question'], result=str(state['sql_result'])[:2000]),
-            config={"run_name": "Chart Generator Agent", "tags": ["chart", "visualization"]}
+            config={
+                "run_name": "Chart Generator Agent", 
+                "tags": ["chart", "visualization", "tool_use"],
+                "metadata": {"session_id": state.get("session_id")}
+            }
         )
         
         # Extract tool call arguments

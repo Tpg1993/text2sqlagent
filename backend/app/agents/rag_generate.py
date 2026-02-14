@@ -15,6 +15,7 @@ def rag_gen_node(state: AgentState):
         create_chain, 
         {"context": docs_content, "question": state['question']},
         name="RAG Answer Generator",
-        tags=["rag", "generation"]
+        tags=["rag", "generation"],
+        metadata={"session_id": state.get("session_id")}
     )
     return {"rag_answer": ans}

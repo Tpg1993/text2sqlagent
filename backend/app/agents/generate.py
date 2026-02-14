@@ -24,7 +24,8 @@ def generate_node(state: AgentState):
         plan=state.get('plan', "Directly translate the question to SQL based on the schema."), 
         question=state['question'],
         previous_error=previous_error,
-        previous_query=previous_query
+        previous_query=previous_query,
+        metadata={"session_id": state.get("session_id")}
     )
     
     return {
