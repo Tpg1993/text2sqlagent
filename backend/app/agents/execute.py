@@ -8,7 +8,13 @@ def execute_node(state: AgentState):
     
     # Security Check
     sec = state.get('security_context', {})
-    print(f"🔒 Identity: {sec.get('current_agent')} | Role: {sec.get('role')}")
+    role = sec.get('user_role', 'user')
+    print(f"🔒 Identity: {sec.get('current_agent')} | Role: {sec.get('role')} | UserRole: {role}")
+    
+    if role != 'admin':
+         error_msg = "Access Denied: Only admins can execute SQL queries."
+         print(f"⛔ {error_msg}")
+         return {"sql_result": None, "error": error_msg}
     
     try:
         with engine.connect() as conn:

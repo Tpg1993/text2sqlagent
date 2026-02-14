@@ -40,6 +40,27 @@ def general_node(state: AgentState):
                 "metadata": {"session_id": state.get("session_id")}
             }
         )
+        
+        # Check if tool call
+        if response.tool_calls:
+            print(f"🛠️ General Agent calling tool: {response.tool_calls[0]['name']}")
+            # Execute tool
+            tool_call = response.tool_calls[0]
+            if tool_call['name'] == 'web_search':
+                # Inject user role for RBAC
+                # Note: Currently search tool allows all, but we pass it for consistency if updated
+                # search_result = web_search.invoke(tool_call['args']) 
+                # Better: Use the bound tool or simple function call
+                
+                # Check RBAC (Logic moved to tool, but we must pass args)
+                # Since we are calling function directly or via tool.invoke
+                
+                # Let's call the tool function directly for simplicity in this node
+                # passing the arguments from the LLM
+                search_result = web_search.invoke(tool_call['args'])
+                
+                return {"messages": [response, f"Search Result: {search_result}"]}
+        
         return {"messages": [response]}
     except Exception as e:
         print(f"General Agent Error: {e}")

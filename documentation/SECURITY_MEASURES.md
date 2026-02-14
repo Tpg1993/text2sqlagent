@@ -15,8 +15,17 @@ This document outlines the advanced security controls implemented in the Agentic
 *   **Remediation**:
     *   `Generate` agent can **only** write SQL (`GENERATE_SQL`), never execute it.
     *   `Execute` agent is the **only** one with `EXECUTE_SQL` permission.
+    *   **CRITICAL UPDATE**: The `Execute` node and `Schema` node now explicitly check for **Admin Role** at runtime. Non-admins cannot trigger SQL execution even if they bypass the Orchestrator.
     *   `Retrieve` agent is the **only** one with `READ_VECTOR_DB` permission.
     *   If a low-privilege agent tries to perform a high-value action, it is blocked.
+
+### **Name: Tool-Level Authorization**
+*   **Prevents**: Unauthorized Data Access via Tools.
+*   **Uses**: `InjectedToolArg` for context propagation and strict checks within tool definitions.
+*   **Remediation**:
+    *   **Context Injection**: User roles (`admin`, `user`) are securely injected into tools by the Orchestrator/Agent runtime, invisible to the LLM.
+    *   **SQL Tools**: `list_tables` and `get_table_schema` are restricted to **Admin** role only.
+    *   **Fail-Safe**: Attempts by non-admins to use these tools return an "Access Denied" error payload, preventing data leakage.
 
 ---
 

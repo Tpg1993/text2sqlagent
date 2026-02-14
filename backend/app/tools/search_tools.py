@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 search = DuckDuckGoSearchRun()
 
 @tool(parse_docstring=True)
-def web_search(query: str) -> str:
+def web_search(query: str, user_role: str = "user") -> str:
     """
     Search the web for real-time information using DuckDuckGo.
     Use this tool when the user asks about current events, stock prices, news, or
@@ -15,6 +15,7 @@ def web_search(query: str) -> str:
     
     Args:
         query: The search query string.
+        user_role: The role of the user (injected).
     
     Returns:
         A summary of the search results.
