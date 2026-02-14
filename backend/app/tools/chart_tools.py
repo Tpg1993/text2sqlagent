@@ -33,7 +33,7 @@ class ChartSpec(BaseModel):
         description="Optional list of hex color codes for the chart series."
     )
 
-@tool(parse_docstring=True, tags=["tool", "chart", "visualization"])
+@tool(parse_docstring=True)
 def generate_chart_spec(
     chart_type: Literal["bar", "line", "pie", "area", "scatter"],
     title: str,
@@ -44,7 +44,14 @@ def generate_chart_spec(
 ) -> Dict[str, Any]:
     """
     Generates a structured chart specification for the frontend.
-    Call this tool when the user asks for a visualization or when data needs to be plotted.
+
+    Args:
+        chart_type: The type of chart to display.
+        title: A descriptive title for the chart.
+        data: The data points to be plotted. Each dict represents a row.
+        x_key: The key in the data objects to use for the X-axis (category).
+        y_keys: The keys in the data objects to use for the Y-axis (values/series).
+        colors: Optional list of hex color codes for the chart series.
     """
     return {
         "type": chart_type,
