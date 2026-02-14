@@ -81,17 +81,18 @@ class GuardrailManager:
             return True, None
         
         try:
-            # Simple heuristic: check for harmful patterns
-            harmful_patterns = [
-                "hack", "exploit", "illegal", "steal", "fraud",
-                "violence", "weapon", "drug"
-            ]
+            # Use NeMo Guardrails to validate output
+            response = self.rails.generate(
+                messages=[{"role": "bot", "content": bot_response}]
+            )
             
-            lower_response = bot_response.lower()
-            for pattern in harmful_patterns:
-                if pattern in lower_response:
-                    return False, "I cannot provide that information as it may be harmful or inappropriate."
+            # If NeMo blocks the output, it returns a refusal message
+            # We can check if the response content contains a block indicator or refusal
+            # Note: The response from rails.generate is usually the *safe* response or the refusal.
             
+            if response and "cannot" in response.get("content", "").lower():
+                 return False, "I cannot provide that information as it may be harmful or inappropriate."
+
             return True, None
             
         except Exception as e:
