@@ -104,8 +104,10 @@ class Config:
         self.OTEL_EXPORTER_OTLP_ENDPOINT = self.get_secret("OTEL_EXPORTER_OTLP_ENDPOINT", default="")
         
         # Auth
-        self.ADMIN_PASSWORD = self.get_secret("ADMIN_PASSWORD", default="admin@123")
-        self.USER1_PASSWORD = self.get_secret("USER1_PASSWORD", default="user1@123")
+        # Auth
+        # Fail if passwords not set (Security Best Practice)
+        self.ADMIN_PASSWORD = self.get_secret("ADMIN_PASSWORD") 
+        self.USER1_PASSWORD = self.get_secret("USER1_PASSWORD")
 
 # Singleton instance
 settings = Config()
