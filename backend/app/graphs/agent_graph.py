@@ -38,8 +38,33 @@ def trace_node(node_name, node_func):
             except:
                 pass  # Ignore SSE errors
         
+        # Enforce Step Limit
+        current_steps = state.get("step_count", 0) + 1
+        # Update state with new count. 
+        # Note: In LangGraph, we typically return the update. 
+        # But here we are wrapping the node function. The node function returns the update.
+        # We can't easily inject the step count update unless the node function does it.
+        # OR we check it here and if the node returns a dict, we merge it?
+        # Actually, state is immutable in some contexts, but here it's passed in.
+        
+        from app.config import settings
+        if current_steps > settings.MAX_AGENT_STEPS:
+            error_msg = f"⛔ Max agent steps ({settings.MAX_AGENT_STEPS}) exceeded. Aborting to prevent infinite loop."
+            # We return an error state directly, bypassing the node execution
+            return {
+                "error": error_msg,
+                "step_count": current_steps,
+                "messages": [f"System Error: {error_msg}"]
+            }
+            
         with tracer.start_as_current_span(f"agent_node_{node_name}"):
-            return node_func(state)
+            # Execute Node
+            result = node_func(state)
+            
+            # Increment step count in result
+            if isinstance(result, dict):
+                result["step_count"] = current_steps
+            return result
     return wrapped
 
 # Modular Imports

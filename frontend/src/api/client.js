@@ -49,10 +49,17 @@ export async function chat(message, onProgress) {
         try {
             errorData = await response.json();
         } catch (e) {
-            errorData = { error: 'Unknown Error' };
+            const text = await response.text().catch(() => '');
+            errorData = { error: text || 'Unknown Error' };
         }
 
-        const error = new Error(errorData.message || 'Network response was not ok');
+        const backendMessage =
+            errorData?.message ||
+            errorData?.detail ||
+            errorData?.error ||
+            (Array.isArray(errorData?.detail) ? JSON.stringify(errorData.detail) : null);
+
+        const error = new Error(backendMessage || `Request failed with status ${response.status}`);
         error.status = response.status;
         error.data = errorData;
         throw error;

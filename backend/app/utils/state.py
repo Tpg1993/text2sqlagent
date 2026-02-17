@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     sql_result: Optional[Union[List[Dict[str, Any]], str]]
     sql_valid: bool
     error: Optional[str]
+    step_count: int = 0
     visualization_spec: Optional[Dict[str, Any]]
     
     # RAG Flow

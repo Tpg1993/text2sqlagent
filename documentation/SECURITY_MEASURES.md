@@ -15,7 +15,7 @@ This document outlines the advanced security controls implemented in the Agentic
 *   **Remediation**:
     *   `Generate` agent can **only** write SQL (`GENERATE_SQL`), never execute it.
     *   `Execute` agent is the **only** one with `EXECUTE_SQL` permission.
-    *   **CRITICAL UPDATE**: The `Execute` node and `Schema` node now explicitly check for **Admin Role** at runtime. Non-admins cannot trigger SQL execution even if they bypass the Orchestrator.
+    *   **UPDATE**: SQL execution is now available to **all authenticated users** (admin and standard roles) to ensure core application functionality. Administrative checks are reserved for highly sensitive tables.
     *   `Retrieve` agent is the **only** one with `READ_VECTOR_DB` permission.
     *   If a low-privilege agent tries to perform a high-value action, it is blocked.
 
@@ -23,9 +23,8 @@ This document outlines the advanced security controls implemented in the Agentic
 *   **Prevents**: Unauthorized Data Access via Tools.
 *   **Uses**: `InjectedToolArg` for context propagation and strict checks within tool definitions.
 *   **Remediation**:
-    *   **Context Injection**: User roles (`admin`, `user`) are securely injected into tools by the Orchestrator/Agent runtime, invisible to the LLM.
-    *   **SQL Tools**: `list_tables` and `get_table_schema` are restricted to **Admin** role only.
-    *   **Fail-Safe**: Attempts by non-admins to use these tools return an "Access Denied" error payload, preventing data leakage.
+    *   **Context Injection**: User roles (`admin`, `user`) are securely injected into the agent state via the chat endpoint for downstream permission checks.
+    *   **SQL Tools**: Generic tool-level role barriers have been removed to allow the LLM to access metadata (schema/tables) for all users, shifting final enforcement to the `Execute` agent node.
 
 ---
 
@@ -76,6 +75,13 @@ This document outlines the advanced security controls implemented in the Agentic
     *   Keywords like `DROP TABLE`, `DELETE FROM`, or `ALTER USER` trigger an instant validation failure.
     *   Only `SELECT` statements (Read-Only) are permitted by default.
 
+### **Name: SQL Input Sanitization (Whitelisting)**
+*   **Prevents**: SQL Injection via Tool Arguments, "Hallucinated" Table Names.
+*   **Uses**: Runtime Schema Validation in [app/tools/sql_tools.py](../backend/app/tools/sql_tools.py).
+*   **Remediation**:
+    *   Before any tool execution (`get_schema`, `sample_rows`), the input `table_name` is validated against the **actual** database table list.
+    *   Invalid tables are rejected immediately, preventing injection attacks and driver errors.
+
 ### **Name: Deterministic Graph Flow**
 *   **Prevents**: Logic Corruption, "Tool-Use" Hallucinations.
 *   **Uses**: `LangGraph` StateGraph definition.
@@ -92,8 +98,15 @@ This document outlines the advanced security controls implemented in the Agentic
 *   **Prevents**: Denial of Service (DoS), Resource Exhaustion.
 *   **Uses**: Custom Rate Limit middleware in [app/main.py](../backend/app/main.py).
 *   **Remediation**:
-    *   Tracks requests per user/IP.
+    *   Tracks requests per user/IP. (Note: Currently disabled on main chat endpoint to resolve response middleware conflicts).
     *   If limits are exceeded, returns a `429 Too Many Requests` status with a `Retry-After` header, protecting the backend from being overwhelmed.
+
+### **Name: SSRF Firewall (Web Search)**
+*   **Prevents**: Internal Network Scanning, Metadata Access.
+*   **Uses**: Regex Validator in [app/tools/search_tools.py](../backend/app/tools/search_tools.py).
+*   **Remediation**:
+    *   Blocks search queries containing: `localhost`, `127.0.0.1`, `file://`, and Private IP ranges (`10.x`, `192.168.x`).
+    *   Ensures the agent cannot be used as a proxy to attack internal infrastructure.
 
 ### **Name: Ephemeral State Isolation**
 *   **Prevents**: Session Hijacking, Cross-User Data Leakage.

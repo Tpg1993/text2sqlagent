@@ -36,7 +36,7 @@ export default function ChatInterface() {
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setLoading(true);
-        setAgentProgress('🤖 Starting...');
+        setAgentProgress('Starting...');
 
         try {
             const res = await chat(userMsg.content, (data) => {
@@ -68,10 +68,9 @@ export default function ChatInterface() {
             let errorMsg = "Sorry, something went wrong: " + err.message;
 
             // Check for rate limit error with retry time
-            if (err.data && err.data.retry_after) {
-                // Determine if retry_after is just seconds or full message
-                const seconds = err.data.retry_after.replace('s', '');
-                errorMsg = `⏳ **Rate Limit Hit**: Please wait **${seconds} seconds** before sending another message.`;
+            if (err.data && err.data.retry_after !== undefined && err.data.retry_after !== null) {
+                const seconds = String(err.data.retry_after).replace('s', '');
+                errorMsg = `Rate limit hit: please wait ${seconds} seconds before sending another message.`;
             }
 
             setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);

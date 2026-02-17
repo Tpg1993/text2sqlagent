@@ -109,6 +109,13 @@ class Config:
         self.ADMIN_PASSWORD = self.get_secret("ADMIN_PASSWORD") 
         self.USER1_PASSWORD = self.get_secret("USER1_PASSWORD")
 
+        # Rate Limit Feature Flags
+        self.ENABLE_IP_RATE_LIMIT = self.get_secret("ENABLE_IP_RATE_LIMIT", default="true").lower() == "true"
+        self.ENABLE_USER_RATE_LIMIT = self.get_secret("ENABLE_USER_RATE_LIMIT", default="true").lower() == "true"
+        
+        # Safety Limits
+        self.MAX_AGENT_STEPS = int(self.get_secret("MAX_AGENT_STEPS", default="50"))
+
 # Singleton instance
 settings = Config()
 

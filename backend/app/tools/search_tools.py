@@ -20,6 +20,26 @@ def web_search(query: str, user_role: str = "user") -> str:
     Returns:
         A summary of the search results.
     """
+    import re
+    
+    # 1. SSRF / Local Network Protection
+    # Block localhost, 127.0.0.1, 0.0.0.0, private IPs, file://, ftp://
+    blocked_patterns = [
+        r"localhost",
+        r"127\.0\.0\.1",
+        r"0\.0\.0\.0",
+        r"192\.168\.\d{1,3}\.\d{1,3}",
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}",
+        r"172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}", # 172.16.x.x - 172.31.x.x
+        r"file://",
+        r"ftp://",
+        r"gopher://"
+    ]
+    
+    for pattern in blocked_patterns:
+        if re.search(pattern, query, re.IGNORECASE):
+            return f"Error: Search query blocked for security reasons (Matched restricted pattern: {pattern})."
+
     try:
         return search.invoke(query)
     except Exception as e:

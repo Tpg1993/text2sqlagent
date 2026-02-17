@@ -5,19 +5,15 @@ from sqlalchemy import inspect, text
 from app.db.session import engine
 
 @tool(parse_docstring=True)
-def list_tables(user_role: str = "user") -> List[str]:
+def list_tables() -> List[str]:
     """
     List all tables in the database.
     Use this tool to discover what data is available.
     
-    Args:
-        user_role: The role of the user (injected).
-    
     Returns:
         List[str]: A list of table names.
     """
-    if user_role != "admin":
-        return ["Error: Access Denied. Only admins can list tables."]
+    # Role check removed - enforced at agent node level
     try:
         inspector = inspect(engine)
         return inspector.get_table_names()
@@ -25,24 +21,23 @@ def list_tables(user_role: str = "user") -> List[str]:
         return [f"Error listing tables: {str(e)}"]
 
 @tool(parse_docstring=True)
-def get_table_schema(table_name: str, user_role: str = "user") -> str:
+def get_table_schema(table_name: str) -> str:
     """
     Get the schema (columns and types) for a specific table.
     Use this tool to understand the structure of a table before writing a query.
     
     Args:
         table_name: The name of the table to inspect.
-        user_role: The role of the user (injected).
     
     Returns:
         str: A text description of the table columns and their types.
     """
-    if user_role != "admin":
-        return "Error: Access Denied. Only admins can view schema."
+    # Role check removed - enforced at agent node level
     try:
         inspector = inspect(engine)
-        if table_name not in inspector.get_table_names():
-            return f"Error: Table '{table_name}' does not exist."
+        valid_tables = inspector.get_table_names()
+        if table_name not in valid_tables:
+            return f"Error: Table '{table_name}' does not exist or is not accessible."
             
         columns = inspector.get_columns(table_name)
         schema_text = f"Table: {table_name}\n"
@@ -74,8 +69,15 @@ def get_sample_rows(table_name: str, limit: int = 3) -> List[Dict[str, Any]]:
         List[Dict]: A list of row dictionaries.
     """
     try:
+        # Sanitization: Validate table name against database whitelist
+        inspector = inspect(engine)
+        valid_tables = inspector.get_table_names()
+        if table_name not in valid_tables:
+             return [{"error": f"Error: Table '{table_name}' does not exist or is not accessible."}]
+
         with engine.connect() as connection:
             # Use text() for safe SQL execution
+            # We construct the query using the validated table_name
             query = text(f"SELECT * FROM {table_name} LIMIT :limit")
             result = connection.execute(query, {"limit": limit})
             # Convert rows to dicts

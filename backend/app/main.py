@@ -1,12 +1,26 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+import sys
+
+# Ensure Unicode logs/progress messages don't crash on Windows cp1252 consoles.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+print("[DEBUG] Loading app.main...", flush=True)
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+print("[DEBUG] FastAPI imported", flush=True)
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 from datetime import timedelta
+
+print("[DEBUG] Importing graph...", flush=True)
 from app.graphs.agent_graph import graph
+print("[DEBUG] Graph imported.", flush=True)
+
 from app.config import settings
 from app.utils.sse_manager import sse_manager
 from app.utils.hitl import approval_manager
@@ -14,7 +28,33 @@ from app.auth.models import Token, LoginRequest
 from app.auth.jwt import create_access_token, get_current_user_token, verify_token, ACCESS_TOKEN_EXPIRE_MINUTES, TokenData
 from fastapi import Query
 
+# Rate Limiting
+print("[DEBUG] Importing slowapi...")
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Initialize Limiter
+limiter = Limiter(key_func=get_remote_address, headers_enabled=True)
+
+print("[DEBUG] Initializing FastAPI app...")
 app = FastAPI(title=settings.PROJECT_NAME)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Debug Middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"[REQUEST] {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        print(f"[RESPONSE] {response.status_code}")
+        return response
+    except Exception as e:
+        print(f"[ERROR] Request Failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise e
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,8 +65,9 @@ app.add_middleware(
 )
 
 # Setup OpenTelemetry
-from app.utils.telemetry import setup_telemetry
-setup_telemetry(app)
+# from app.utils.telemetry import setup_telemetry
+# setup_telemetry(app)
+print("[DEBUG] App initialization complete (pre-startup)")
 
 
 class ChatRequest(BaseModel):
@@ -71,31 +112,56 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @app.get(settings.API_V1_STR + "/stream/{session_id}")
 async def stream_progress(session_id: str, token: str = Query(...)):
     """SSE endpoint for streaming agent progress. Requires token query param."""
-    # Verify token
-    await verify_token(token)
-    
-    return StreamingResponse(
-        sse_manager.stream_events(session_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
+    # TEMPORARILY DISABLED - StreamingResponse causing issues
+    # Return empty response to prevent frontend errors
+    from fastapi.responses import Response
+    return Response(content="", media_type="text/plain", status_code=200)
+
+# Helper: Extract User ID for Rate Limiting
+def get_user_key(request: Request):
+    """
+    Extracts user ID from Authorization header for rate limiting.
+    Falls back to IP if no token is present.
+    """
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+             # Basic decode to get 'sub' (username). Signature verification is handled by dependency.
+             import jwt
+             # We assume standard JWT format. Using pyjwt here.
+             # Note: 'options' param might vary by library version, but decode generally works.
+             # We use verify=False because we just want the ID for the key, security is handled later.
+             payload = jwt.decode(token, options={"verify_signature": False})
+             return payload.get("sub", get_remote_address(request))
+        except Exception:
+             return get_remote_address(request)
+    return get_remote_address(request)
+
+# Dynamic Limit Value Functions
+def get_ip_limit_value():
+    return "60/minute" if settings.ENABLE_IP_RATE_LIMIT else "10000/second"
+
+def get_user_limit_value():
+    return "10/minute" if settings.ENABLE_USER_RATE_LIMIT else "10000/second"
 
 @app.post(settings.API_V1_STR + "/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest, current_user: TokenData = Depends(get_current_user_token)):
+# TEMPORARILY REMOVED: Rate limiting causes slowapi response type error
+# @limiter.limit(get_ip_limit_value, key_func=get_remote_address) # Per IP Limit (DoS Protection)
+# @limiter.limit(get_user_limit_value, key_func=get_user_key)       # Per User Limit (Quota)
+async def chat_endpoint(request: Request, body: ChatRequest, current_user: TokenData = Depends(get_current_user_token)):
     import logging
     import traceback
     logger = logging.getLogger(__name__)
     
     # Generate or use provided session ID
-    session_id = request.session_id or str(uuid.uuid4())
+    session_id = body.session_id or str(uuid.uuid4())
     sse_manager.create_session(session_id)
+    print(f"[DEBUG] Chat Endpoint: Received message '{body.message}' Session: {session_id}")
     
     try:
         initial_state = {
-            "question": request.message,
+            "question": body.message,
             "messages": [],
             "retry_count": 0,
             "session_id": session_id,
@@ -111,7 +177,7 @@ async def chat_endpoint(request: ChatRequest, current_user: TokenData = Depends(
         if result.get("requires_approval") and result.get("approval_status") == "pending":
             # DO NOT close SSE session here. Keep it open for approval result.
             return ChatResponse(
-                response=f"⚠️ This query requires approval as it accesses sensitive tables: {', '.join(result.get('sensitive_tables', []))}. Approval request ID: {result.get('approval_request_id')}",
+                response=f"[WARNING] This query requires approval as it accesses sensitive tables: {', '.join(result.get('sensitive_tables', []))}. Approval request ID: {result.get('approval_request_id')}",
                 data=None,
                 chart=None,
                 approval_status="pending"
@@ -150,14 +216,16 @@ async def chat_endpoint(request: ChatRequest, current_user: TokenData = Depends(
             f.write(f"Traceback:\n{traceback.format_exc()}\n")
             f.write(f"=== END ERROR ===\n")
         
-        print(f"\n\n=== ERROR IN CHAT ENDPOINT ===")
-        print(f"Error: {e}")
-        print(f"Traceback:\n{traceback.format_exc()}")
-        print(f"=== END ERROR ===\n\n")
-        raise
+        # Re-raise to let FastAPI handle it (or return 500)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 def health():
+    return {"status": "ok"}
+
+@app.get(settings.API_V1_STR + "/test-limit")
+@limiter.limit("2/minute")
+async def test_limit(request: Request):
     return {"status": "ok"}
 
 # ===== HITL Approval Endpoints =====
@@ -199,7 +267,7 @@ async def approve_query(request_id: str, token: TokenData = Depends(get_current_
                 session_id=approval_request.session_id,
                 event_type="approval_result",
                 data={
-                     "response": f"✅ Query Approved! Executed SQL: {approval_request.query}",
+                     "response": f"[APPROVED] Query Approved! Executed SQL: {approval_request.query}",
                      "data": rows
                 }
             )

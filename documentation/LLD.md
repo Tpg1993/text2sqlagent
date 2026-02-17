@@ -85,13 +85,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
 @app.get("/sse/{session_id}")
 async def sse_stream(session_id: str):
     """
-    Server-Sent Events endpoint for real-time updates.
-    
-    Flow:
-    1. Create EventSourceResponse
-    2. Subscribe to SSE manager for session_id
-    3. Stream progress events as they occur
-    4. Close on completion or timeout
+    (DISABLED) Server-Sent Events endpoint.
+    Currently returns an empty response to prevent client-side hanging.
     """
 ```
 
@@ -647,6 +642,8 @@ data: {"step": "generate", "message": "✍️ Generating SQL..."}
 event: complete
 data: {"status": "done"}
 ```
+
+*(Note: Currently returns content-length 0 placeholder to prevent errors).*
 
 ## 5. Error Handling Strategy
 

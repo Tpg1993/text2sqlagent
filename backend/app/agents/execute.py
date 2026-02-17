@@ -6,15 +6,10 @@ def execute_node(state: AgentState):
     """Executes SQL."""
     print("--- EXECUTE ---")
     
-    # Security Check
-    sec = state.get('security_context', {})
-    role = sec.get('user_role', 'user')
-    print(f"🔒 Identity: {sec.get('current_agent')} | Role: {sec.get('role')} | UserRole: {role}")
-    
-    if role != 'admin':
-         error_msg = "Access Denied: Only admins can execute SQL queries."
-         print(f"⛔ {error_msg}")
-         return {"sql_result": None, "error": error_msg}
+    # Log user info (no restriction - all authenticated users can query)
+    role = state.get('user_role', 'user')
+    user_id = state.get('user_id', 'unknown')
+    print(f"🔒 User: {user_id} | Role: {role}")
     
     try:
         with engine.connect() as conn:

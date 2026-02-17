@@ -10,7 +10,7 @@ The application is an intelligent agent-based system that processes natural lang
 graph TB
     subgraph Client["Client Layer"]
         WebUI[React Web UI]
-        SSE[Real-time Updates via SSE]
+        SSE[SSE Client (Disabled)]
     end
     
     subgraph API["API Gateway Layer"]
@@ -71,7 +71,7 @@ graph TB
     General --> OutputGuard
     
     OutputGuard --> FastAPI
-    FastAPI --> SSE --> WebUI
+    API --> F
     
     PIIDetect -.scrubs before.-> FAISS
 ```
@@ -83,7 +83,7 @@ graph TB
 - **Strategy Pattern**: Different handlers for SQL/RAG/General
 - **Chain of Responsibility**: Guardrails → Orchestrator → Handlers
 - **Retry Pattern**: Automatic retry with exponential backoff for SQL generation
-- **Observer Pattern**: SSE for real-time progress updates
+- **Observer Pattern**: (Disabled) SSE for real-time progress updates. Currently uses standard Request/Response.
 
 ### 2.2 Security-First Design
 - **Defense in Depth**: Multiple security layers (input/output guardrails, PII scrubbing)
@@ -106,7 +106,7 @@ graph TB
 - React 18 + Vite
 - TailwindCSS for styling
 - Recharts for visualization
-- EventSource API for SSE
+- EventSource API (Inactive)
 
 ### 3.2 API Gateway (FastAPI)
 **Responsibility**: HTTP request handling and routing
@@ -275,7 +275,7 @@ sequenceDiagram
     S->>S: Format response (LLM)
     S->>OG: Validate output
     OG->>A: Output valid
-    A->>F: SSE updates + final result
+    A->>F: Result + Chart
     F->>U: Display results + chart
 ```
 
@@ -303,7 +303,7 @@ sequenceDiagram
     R->>R: Format response (LLM)
     R->>OG: Validate output
     OG->>A: Output valid
-    A->>F: SSE updates + final result
+    A->>F: Result
     F->>U: Display answer
 ```
 
