@@ -20,7 +20,9 @@ def chart_node(state: AgentState):
         google_api_key=settings.GOOGLE_API_KEY,
         convert_system_message_to_human=True # Sometimes needed for Gemini
     )
-    llm_with_tools = llm.bind_tools([generate_chart_spec], tool_choice="generate_chart_spec")
+    # Tool Registration Hardening: Only bind allowed tools for this agent
+    allowed_tools = [generate_chart_spec]
+    llm_with_tools = llm.bind_tools(allowed_tools, tool_choice="generate_chart_spec")
     
     CHART_TOOL_PROMPT = """
     You are a data visualization expert.
