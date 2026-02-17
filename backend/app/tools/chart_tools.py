@@ -1,7 +1,9 @@
 
+
 from typing import List, Optional, Dict, Any, Literal
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
+from app.utils.security import security_manager
 
 class ChartSpec(BaseModel):
     """
@@ -40,8 +42,14 @@ def generate_chart_spec(
     data: List[Dict[str, Any]],
     x_key: str,
     y_keys: List[str],
-    colors: Optional[List[str]] = None
+    colors: Optional[List[str]] = None,
+    state: dict = None
 ) -> Dict[str, Any]:
+    # RBAC: Only chart agent
+    allowed_agents = {"chart"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return {"error": "Access denied for this agent."}
     """
     Generates a structured chart specification for the frontend.
 

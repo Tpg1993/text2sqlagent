@@ -1,11 +1,18 @@
 
+
 from typing import List, Dict, Any, Optional
 from langchain_core.tools import tool
 from sqlalchemy import inspect, text
 from app.db.session import engine
+from app.utils.security import security_manager
 
 @tool(parse_docstring=True)
-def list_tables() -> List[str]:
+def list_tables(state: dict = None) -> List[str]:
+    # RBAC: Only schema, generate, validate agents
+    allowed_agents = {"schema", "generate", "validate"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return ["Error: Access denied for this agent."]
     """
     List all tables in the database.
     Use this tool to discover what data is available.
@@ -21,7 +28,12 @@ def list_tables() -> List[str]:
         return [f"Error listing tables: {str(e)}"]
 
 @tool(parse_docstring=True)
-def get_table_schema(table_name: str) -> str:
+def get_table_schema(table_name: str, state: dict = None) -> str:
+    # RBAC: Only schema, generate, validate agents
+    allowed_agents = {"schema", "generate", "validate"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return "Error: Access denied for this agent."
     """
     Get the schema (columns and types) for a specific table.
     Use this tool to understand the structure of a table before writing a query.
@@ -56,7 +68,12 @@ def get_table_schema(table_name: str) -> str:
         return f"Error getting schema for {table_name}: {str(e)}"
 
 @tool(parse_docstring=True)
-def get_sample_rows(table_name: str, limit: int = 3) -> List[Dict[str, Any]]:
+def get_sample_rows(table_name: str, limit: int = 3, state: dict = None) -> List[Dict[str, Any]]:
+    # RBAC: Only generate, validate, execute agents
+    allowed_agents = {"generate", "validate", "execute"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return [{"error": "Access denied for this agent."}]
     """
     Get sample rows from a table to understand the data format.
     Use this to see actual values (e.g., is 'status' a string or int?).

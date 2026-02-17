@@ -2,12 +2,18 @@
 from typing import List, Dict, Any, Optional
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import tool
+from app.utils.security import security_manager
 
 # Initialize the search run
 search = DuckDuckGoSearchRun()
 
 @tool(parse_docstring=True)
-def web_search(query: str, user_role: str = "user") -> str:
+def web_search(query: str, user_role: str = "user", state: dict = None) -> str:
+    # RBAC: Only general agent
+    allowed_agents = {"general"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return "Error: Access denied for this agent."
     """
     Search the web for real-time information using DuckDuckGo.
     Use this tool when the user asks about current events, stock prices, news, or

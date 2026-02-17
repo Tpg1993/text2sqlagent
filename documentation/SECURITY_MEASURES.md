@@ -2,6 +2,48 @@
 
 This document outlines the advanced security controls implemented in the Agentic RAG application to ensure production-grade safety, privacy, and reliability.
 
+## Agent Roles, Permissions, and Boundaries
+
+
+The following table summarizes all agent nodes, their assigned roles, permissions, and operational boundaries enforced by the RBAC system:
+
+| Agent Name        | Role                | Permissions                | Operational Boundary / Description                                 |
+|-------------------|---------------------|----------------------------|--------------------------------------------------------------------|
+| orchestrator      | router              | ROUTE_REQUEST              | Routes requests; cannot execute queries or access data             |
+| schema            | metadata_reader     | (none)                     | Can fetch schema metadata only; read-only                          |
+| planner           | planner             | PLAN_QUERY                 | Can plan queries; no data access                                   |
+| generate          | sql_writer          | GENERATE_SQL               | Can generate SQL strings; cannot execute them                      |
+| validate          | security_audit      | VALIDATE_SQL               | Can validate SQL for safety/compliance                             |
+| execute           | db_admin            | EXECUTE_SQL                | Only agent allowed to execute SQL queries                          |
+| evaluate          | auditor             | (none)                     | Checks result quality; no privileged actions                       |
+| retrieve          | knowledge_seeker    | READ_VECTOR_DB             | Can access vector DB for RAG retrieval                             |
+| rag_gen           | writer              | GENERATE_RAG_ANSWER        | Can generate RAG answers; cannot access DB directly                |
+| chart             | analyst             | GENERATE_CHART             | Can generate data visualizations                                   |
+| format            | frontend_interface  | FORMAT_RESPONSE            | Can format output for frontend                                     |
+| retry             | logic               | (none)                     | Handles retry logic; no data access                                |
+| approval_pending  | approval_router     | (none)                     | Used for HITL approval routing; no privileged actions              |
+| general           | generalist          | (web_search)               | Handles general/external queries; only agent allowed to use web_search tool |
+
+
+## Tool-to-Agent Binding and RBAC Enforcement
+
+The following table defines which agents are allowed to use each tool, ensuring strict RBAC and least-privilege enforcement:
+
+| Tool Name           | Purpose/Function                        | Agents Allowed to Use Tool         | Reason/Scope                                                      |
+|---------------------|-----------------------------------------|------------------------------------|-------------------------------------------------------------------|
+| list_tables         | List all DB tables                      | schema, generate, validate         | Only agents involved in query planning/generation/validation      |
+| get_table_schema    | Get schema for a table                  | schema, generate, validate         | Only agents that need schema info for query generation/validation |
+| get_sample_rows     | Get sample rows from a table            | generate, validate, execute        | Only agents that generate, validate, or execute SQL               |
+| generate_chart_spec | Generate chart config for frontend      | chart                              | Only the chart agent should generate visualizations               |
+| web_search          | Perform web search (DuckDuckGo)         | general                            | Only the general agent should access external web info            |
+
+**Enforcement:**
+- Each tool must be accessible only to the agent(s) whose role and permissions require it for their function.
+- No agent should be able to invoke a tool outside its defined scope. This is enforced in the agent logic and RBAC system.
+
+This mapping ensures strong separation of duties, minimizes risk, and aligns with production-grade security best practices.
+
+
 ## 1. Identity & Access Control (IAM)
 
 ### **Name: Unique Agent Identities**
