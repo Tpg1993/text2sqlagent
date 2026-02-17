@@ -8,7 +8,9 @@ def format_node(state: AgentState):
     
     # If General
     if state.get("intent") == "general":
-        return {"messages": ["Hello! I am Agenthic, your data assistant. I can help you query the sales database or answer questions from our knowledge base."]}
+        # Return the last message from the general_node (which contains the LLM response)
+        # Note: state['messages'] contains the list of messages including the LLM's AIMessage
+        return {"messages": [state['messages'][-1]]}
 
     # IF SQL
     if state.get("sql_result"):

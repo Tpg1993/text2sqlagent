@@ -55,17 +55,6 @@ def generate_chart_spec(
     colors: Optional[List[str]] = None,
     state: dict = None
 ) -> Dict[str, Any]:
-    # RBAC: Only chart agent
-    allowed_agents = {"chart"}
-    # Immutable security context: copy to prevent mutation
-    import copy
-    security_context = copy.deepcopy((state or {}).get("security_context", {}))
-    agent = security_context.get("current_agent")
-    if agent not in allowed_agents:
-        # Fail-safe default: deny access and log
-        import logging
-        logging.warning(f"Access denied for agent: {agent}")
-        return {"error": "Access denied for this agent."}
     """
     Generates a structured chart specification for the frontend.
 
@@ -77,6 +66,17 @@ def generate_chart_spec(
         y_keys: The keys in the data objects to use for the Y-axis (values/series).
         colors: Optional list of hex color codes for the chart series.
     """
+    # RBAC: Only chart agent
+    allowed_agents = {"chart"}
+    # Immutable security context: copy to prevent mutation
+    import copy
+    security_context = copy.deepcopy((state or {}).get("security_context", {}))
+    agent = security_context.get("current_agent")
+    if agent not in allowed_agents:
+        # Fail-safe default: deny access and log
+        import logging
+        logging.warning(f"Access denied for agent: {agent}")
+        return {"error": "Access denied for this agent."}
     return {
         "type": chart_type,
         "title": title,

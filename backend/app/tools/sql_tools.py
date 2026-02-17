@@ -8,11 +8,6 @@ from app.utils.security import security_manager
 
 @tool(parse_docstring=True)
 def list_tables(state: dict = None) -> List[str]:
-    # RBAC: Only schema, generate, validate agents
-    allowed_agents = {"schema", "generate", "validate"}
-    agent = (state or {}).get("security_context", {}).get("current_agent")
-    if agent not in allowed_agents:
-        return ["Error: Access denied for this agent."]
     """
     List all tables in the database.
     Use this tool to discover what data is available.
@@ -20,6 +15,11 @@ def list_tables(state: dict = None) -> List[str]:
     Returns:
         List[str]: A list of table names.
     """
+    # RBAC: Only schema, generate, validate agents
+    allowed_agents = {"schema", "generate", "validate"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return ["Error: Access denied for this agent."]
     # Role check removed - enforced at agent node level
     try:
         inspector = inspect(engine)
@@ -29,11 +29,6 @@ def list_tables(state: dict = None) -> List[str]:
 
 @tool(parse_docstring=True)
 def get_table_schema(table_name: str, state: dict = None) -> str:
-    # RBAC: Only schema, generate, validate agents
-    allowed_agents = {"schema", "generate", "validate"}
-    agent = (state or {}).get("security_context", {}).get("current_agent")
-    if agent not in allowed_agents:
-        return "Error: Access denied for this agent."
     """
     Get the schema (columns and types) for a specific table.
     Use this tool to understand the structure of a table before writing a query.
@@ -44,6 +39,11 @@ def get_table_schema(table_name: str, state: dict = None) -> str:
     Returns:
         str: A text description of the table columns and their types.
     """
+    # RBAC: Only schema, generate, validate agents
+    allowed_agents = {"schema", "generate", "validate"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return "Error: Access denied for this agent."
     # Role check removed - enforced at agent node level
     try:
         inspector = inspect(engine)
@@ -69,11 +69,6 @@ def get_table_schema(table_name: str, state: dict = None) -> str:
 
 @tool(parse_docstring=True)
 def get_sample_rows(table_name: str, limit: int = 3, state: dict = None) -> List[Dict[str, Any]]:
-    # RBAC: Only generate, validate, execute agents
-    allowed_agents = {"generate", "validate", "execute"}
-    agent = (state or {}).get("security_context", {}).get("current_agent")
-    if agent not in allowed_agents:
-        return [{"error": "Access denied for this agent."}]
     """
     Get sample rows from a table to understand the data format.
     Use this to see actual values (e.g., is 'status' a string or int?).
@@ -85,6 +80,11 @@ def get_sample_rows(table_name: str, limit: int = 3, state: dict = None) -> List
     Returns:
         List[Dict]: A list of row dictionaries.
     """
+    # RBAC: Only generate, validate, execute agents
+    allowed_agents = {"generate", "validate", "execute"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return [{"error": "Access denied for this agent."}]
     try:
         # Sanitization: Validate table name against database whitelist
         inspector = inspect(engine)

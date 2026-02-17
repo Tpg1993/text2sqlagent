@@ -9,11 +9,6 @@ search = DuckDuckGoSearchRun()
 
 @tool(parse_docstring=True)
 def web_search(query: str, user_role: str = "user", state: dict = None) -> str:
-    # RBAC: Only general agent
-    allowed_agents = {"general"}
-    agent = (state or {}).get("security_context", {}).get("current_agent")
-    if agent not in allowed_agents:
-        return "Error: Access denied for this agent."
     """
     Search the web for real-time information using DuckDuckGo.
     Use this tool when the user asks about current events, stock prices, news, or
@@ -26,6 +21,11 @@ def web_search(query: str, user_role: str = "user", state: dict = None) -> str:
     Returns:
         A summary of the search results.
     """
+    # RBAC: Only general agent
+    allowed_agents = {"general"}
+    agent = (state or {}).get("security_context", {}).get("current_agent")
+    if agent not in allowed_agents:
+        return "Error: Access denied for this agent."
     import re
     
     # 1. SSRF / Local Network Protection
