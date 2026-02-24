@@ -11,15 +11,8 @@ def general_node(state: AgentState):
     """
     print("--- GENERAL AGENT ---")
     
-    # Initialize Gemini with Search Tool
-    llm = ChatGoogleGenerativeAI(
-        model=settings.GEMINI_MODEL,
-        temperature=0,
-        google_api_key=settings.GOOGLE_API_KEY
-    )
-    
-    # Bind the search tool
-    llm_with_tools = llm.bind_tools([web_search])
+    # Initialize LLM with fallback and Search Tool
+    from app.utils.llm import invoke_chain_with_fallback
     
     # System Prompt
     SYS_PROMPT = """You are a helpful assistant.
@@ -31,30 +24,36 @@ def general_node(state: AgentState):
     
     messages = [{"role": "system", "content": SYS_PROMPT}] + state['messages'] + [{"role": "user", "content": state.get('question', '')}]
     
+    def chain_factory(llm):
+        # sarvam-m does not support tools, prevent 400 Bad Request
+        is_sarvam_m = settings.LLM_PROVIDER.lower() == 'sarvam' and settings.SARVAM_MODEL == 'sarvam-m'
+        
+        # We also need to be careful: if we are falling back to Gemini, Gemini *does* support tools.
+        # But wait, our `invoke_chain_with_fallback` doesn't pass the provider model type. 
+        # A simpler check: if the llm is ChatOpenAI AND base_url contains sarvam AND model is sarvam-m, skip tools.
+        is_unsupported_sarvam = False
+        if hasattr(llm, 'model_name') and llm.model_name == 'sarvam-m':
+            is_unsupported_sarvam = True
+
+        if hasattr(llm, "bind_tools") and not is_unsupported_sarvam:
+            return llm.bind_tools([web_search])
+        return llm
+    
     try:
-        response = llm_with_tools.invoke(
-            messages,
-            config={
-                "run_name": "General Agent",
-                "tags": ["general", "search"],
-                "metadata": {"session_id": state.get("session_id")}
-            }
+        response = invoke_chain_with_fallback(
+            chain_factory,
+            input_data=messages,
+            name="General Agent",
+            tags=["general", "search"],
+            metadata={"session_id": state.get("session_id")}
         )
         
         # Check if tool call
-        if response.tool_calls:
+        if hasattr(response, "tool_calls") and response.tool_calls:
             print(f"🛠️ General Agent calling tool: {response.tool_calls[0]['name']}")
             # Execute tool
             tool_call = response.tool_calls[0]
             if tool_call['name'] == 'web_search':
-                # Inject user role for RBAC
-                # Note: Currently search tool allows all, but we pass it for consistency if updated
-                # search_result = web_search.invoke(tool_call['args']) 
-                # Better: Use the bound tool or simple function call
-                
-                # Check RBAC (Logic moved to tool, but we must pass args)
-                # Since we are calling function directly or via tool.invoke
-                
                 # Let's call the tool function directly for simplicity in this node
                 # passing the arguments from the LLM
                 search_result = web_search.invoke(tool_call['args'])

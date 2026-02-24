@@ -1,0 +1,19 @@
+{
+    "messages": [
+        "Could not answer. Error: None"
+    ],
+    "question": "Show me all customers from California",
+    "intent": "sql",
+    "schema": "Table: customers\n- id (INTEGER)\n- name (TEXT)\n- email (TEXT)\n- location (TEXT)\nTable: departments\n- id (INTEGER)\n- name (TEXT)\nTable: employees\n- id (INTEGER)\n- name (TEXT)\n- department_id (INTEGER)\n- salary (INTEGER)\nTable: sales\n- id (INTEGER)\n- employee_id (INTEGER)\n- amount (INTEGER)\n- date (TEXT)\n",
+    "sql_query": "SELECT * FROM customers WHERE location = 'California';",
+    "sql_result": "None",
+    "sql_valid": "True",
+    "error": "None",
+    "step_count": "8",
+    "retry_count": "0",
+    "session_id": "test_session_1",
+    "requires_approval": "True",
+    "approval_status": "pending",
+    "approval_request_id": "2acaed61-0690-4e64-bd28-2a5649e3670e",
+    "sensitive_tables": "['customers']"
+}

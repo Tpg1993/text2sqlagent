@@ -28,96 +28,93 @@ def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: 
     metadata.update(default_metadata)
     
     with tracer.start_as_current_span(name) as span:
-        # Use Gemini as primary
-        try:
-            print(f"🔵 Using Gemini model {settings.GEMINI_MODEL}...")
-            logger.info("Using Gemini as primary LLM...")
-            
+        def get_sarvam():
+            if not settings.SARVAM_API_KEY or settings.SARVAM_API_KEY == "ENTER_SARVAM_API_KEY_HERE":
+                raise ValueError("SARVAM_API_KEY is not set")
+            print(f"🔵 Using Sarvam model {settings.SARVAM_MODEL}...")
+            logger.info("Using Sarvam as LLM...")
+            return ChatOpenAI(
+                model=settings.SARVAM_MODEL, temperature=0,
+                api_key=settings.SARVAM_API_KEY, base_url="https://api.sarvam.ai/v1"
+            )
+
+        def get_openai():
+            if not settings.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is not set")
+            print(f"🔵 Using OpenAI model {settings.LLM_MODEL}...")
+            logger.info("Using OpenAI as LLM...")
+            return ChatOpenAI(
+                model=settings.LLM_MODEL, temperature=0, api_key=settings.OPENAI_API_KEY
+            )
+
+        def get_gemini():
             if not settings.GOOGLE_API_KEY:
                 raise ValueError("GOOGLE_API_KEY is not set")
-            
-            # Create a RunnableLambda that acts as the LLM
+            print(f"🔵 Using Gemini model {settings.GEMINI_MODEL}...")
+            logger.info("Using Gemini as LLM...")
             def gemini_runner(prompt_value):
-                # 1. Initialize Client
                 client = genai.Client(api_key=settings.GOOGLE_API_KEY, http_options={'api_version':'v1'})
-                
-                # 2. Extract text from PromptValue (LangChain object)
                 prompt_text = prompt_value.to_string()
-                
-                # 3. Call New SDK
                 response = client.models.generate_content(
-                    model=settings.GEMINI_MODEL,
-                    contents=prompt_text
+                    model=settings.GEMINI_MODEL, contents=prompt_text
                 )
-                
-                # 4. Return AIMessage for compatibility with StrOutputParser
                 return AIMessage(content=response.text)
-    
-            # Wrap in RunnableLambda so it supports "|" operator
-            llm = RunnableLambda(gemini_runner, name="Gemini Call")
+            return RunnableLambda(gemini_runner, name="Gemini Call")
+
+        providers = [
+            ("sarvam", get_sarvam),
+            ("gemini", get_gemini),
+            ("openai", get_openai)
+        ]
+
+        # Order providers: start with the selected LLM_PROVIDER
+        primary_provider = settings.LLM_PROVIDER.lower()
+        sequence = []
+        for pid, builder in providers:
+            if pid == primary_provider:
+                sequence.append((pid, builder))
+                
+        for pid, builder in providers:
+            if pid != primary_provider:
+                sequence.append((pid, builder))
+                
+        last_error = None
+        for pid, builder in sequence:
+            try:
+                llm = builder()
+                chain = chain_factory(llm)
+                result = chain.invoke(
+                    input_data, 
+                    config={"run_name": name, "tags": tags, "metadata": metadata}
+                )
+                print(f"✅ {pid.capitalize()} response received")
+                return result
+            except Exception as e:
+                print(f"❌ {pid.capitalize()} call failed: {e}")
+                logger.error(f"{pid.capitalize()} call failed: {e}")
+                last_error = e
+
+        # If we reach here, all providers failed
+        span.record_exception(last_error)
+        span.set_status(trace.Status(trace.StatusCode.ERROR))
+        
+        # Check for Rate Limit to throw expected custom exception
+        if last_error:
+            error_str = str(last_error)
+            import re
             
-            chain = chain_factory(llm)
-            result = chain.invoke(
-                input_data, 
-                config={
-                    "run_name": name, 
-                    "tags": tags,
-                    "metadata": metadata
-                }
-            )
-            print(f"✅ Gemini response received")
-            return result
-            
-        except Exception as e:
-            span.record_exception(e)
-            span.set_status(trace.Status(trace.StatusCode.ERROR))
-            print(f"❌ Gemini call failed: {e}")
-            logger.error(f"Gemini call failed: {e}")
-            
-            # Check for Gemini Rate Limit
-            gemini_retry_after = None
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                import re
-                match = re.search(r"retryDelay': '([\d\.]+)s'", str(e))
+            # Explicitly match HTTP 429 error code or RESOURCE_EXHAUSTED status
+            if re.search(r'\b429\b', error_str) or "RESOURCE_EXHAUSTED" in error_str:
+                print(f"DEBUG RATE LIMIT MATCHER: Triggered by string: {error_str}")
+                gemini_retry_after = None
+                match = re.search(r"retryDelay': '([\d\.]+)s'", error_str)
                 if match:
                     gemini_retry_after = match.group(1)
                 
-                # Fail FAST on Rate Limit: Do not try fallback
                 from app.utils.exceptions import RateLimitException
                 raise RateLimitException(
-                    message=f"Rate limit exceeded. Please try again in {gemini_retry_after or '60'} seconds.",
+                    message=f"Rate limit exceeded on all available providers. Please try again later.",
                     retry_after=gemini_retry_after
                 )
-            
-            # Fallback to OpenAI only if Gemini fails for other reasons (and not rate limit)
-            # print(" Falling back to OpenAI...")
-            # logger.info("Falling back to OpenAI...")
-            
-            # try:
-            #     if not settings.OPENAI_API_KEY:
-            #         raise ValueError("OPENAI_API_KEY is not set")
-                    
-            #     llm = ChatOpenAI(
-            #         model=settings.LLM_MODEL, 
-            #         temperature=0, 
-            #         api_key=settings.OPENAI_API_KEY
-            #     )
-            #     chain = chain_factory(llm)
-            #     return chain.invoke(input_data)
-                
-            # except Exception as openai_error:
-            #     print(f"❌ OpenAI fallback also failed: {openai_error}")
-            #     logger.error(f"OpenAI fallback failed: {openai_error}")
-                
-            #     # If we had a Gemini rate limit (redundant check but safe)
-            #     if gemini_retry_after:
-            #         from app.utils.exceptions import RateLimitException
-            #         raise RateLimitException(
-            #             message=f"Rate limit exceeded. Please try again in {gemini_retry_after} seconds.",
-            #             retry_after=gemini_retry_after
-            #         )
-                
-            #     raise openai_error
-            
-            # If fallback is disabled, just re-raise the Gemini error
-            raise e
+
+        raise last_error

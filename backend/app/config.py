@@ -89,8 +89,11 @@ class Config:
         self.SQLITE_URL = f"sqlite:///{self.BASE_DIR}/data/sales.db"
         
         # LLM Configuration
+        self.LLM_PROVIDER = self.get_secret("LLM_PROVIDER", default="sarvam").lower()
         self.LLM_MODEL = self.get_secret("LLM_MODEL", default="gpt-4o-mini")
         self.GEMINI_MODEL = self.get_secret("GEMINI_MODEL", default="gemini-2.0-flash")
+        self.SARVAM_API_KEY = self.get_secret("SARVAM_API_KEY", default="")
+        self.SARVAM_MODEL = self.get_secret("SARVAM_MODEL", default="sarvam-30b")
         
         # RAG
         self.FAISS_INDEX_PATH = f"{self.BASE_DIR}/data/faiss_index"

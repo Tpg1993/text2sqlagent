@@ -13,7 +13,8 @@ def execute_node(state: AgentState):
     
     try:
         with engine.connect() as conn:
-            result = conn.execute(text(state['sql_query']))
+            clean_query = state['sql_query'].replace('```sql', '').replace('```', '').strip().strip('"').strip("'")
+            result = conn.execute(text(clean_query))
             rows = [dict(row._mapping) for row in result]
             return {"sql_result": rows, "error": None}
     except Exception as e:

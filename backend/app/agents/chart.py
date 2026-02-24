@@ -11,18 +11,22 @@ def chart_node(state: AgentState):
     
     # Tool-based Chart Logic
     from app.tools.chart_tools import generate_chart_spec, ChartSpec
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    # Tool-based Chart Logic
+    from app.tools.chart_tools import generate_chart_spec
+    from app.utils.llm import invoke_chain_with_fallback
     
-    # Bind tool to LLM (Using Gemini)
-    llm = ChatGoogleGenerativeAI(
-        model=settings.GEMINI_MODEL, 
-        temperature=0, 
-        google_api_key=settings.GOOGLE_API_KEY,
-        convert_system_message_to_human=True # Sometimes needed for Gemini
-    )
     # Tool Registration Hardening: Only bind allowed tools for this agent
     allowed_tools = [generate_chart_spec]
-    llm_with_tools = llm.bind_tools(allowed_tools, tool_choice="generate_chart_spec")
+    
+    def chain_factory(llm):
+        """Bind tools if the LLM natively supports it."""
+        is_unsupported_sarvam = False
+        if hasattr(llm, 'model_name') and llm.model_name == 'sarvam-m':
+            is_unsupported_sarvam = True
+
+        if hasattr(llm, "bind_tools") and not is_unsupported_sarvam:
+            return llm.bind_tools(allowed_tools, tool_choice="any")
+        return llm
     
     CHART_TOOL_PROMPT = """
     You are a data visualization expert.
@@ -34,13 +38,12 @@ def chart_node(state: AgentState):
     
     try:
         # Invoke LLM with tools
-        msg = llm_with_tools.invoke(
-            CHART_TOOL_PROMPT.format(question=state['question'], result=str(state['sql_result'])[:2000]),
-            config={
-                "run_name": "Chart Generator Agent", 
-                "tags": ["chart", "visualization", "tool_use"],
-                "metadata": {"session_id": state.get("session_id")}
-            }
+        msg = invoke_chain_with_fallback(
+            chain_factory,
+            input_data=CHART_TOOL_PROMPT.format(question=state['question'], result=str(state['sql_result'])[:2000]),
+            name="Chart Generator Agent",
+            tags=["chart", "visualization", "tool_use"],
+            metadata={"session_id": state.get("session_id")}
         )
         
         # Extract tool call arguments

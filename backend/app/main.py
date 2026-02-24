@@ -192,6 +192,10 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
             chart=result.get("visualization_spec")
         )
     except Exception as e:
+        import traceback
+        print(f"CRITICAL BACKEND EXCEPTION: {repr(e)}")
+        print(traceback.format_exc())
+        
         # Check if it is our custom RateLimitException
         from app.utils.exceptions import RateLimitException
         if isinstance(e, RateLimitException) or (hasattr(e, "retry_after") and e.retry_after):
@@ -258,7 +262,9 @@ async def approve_query(request_id: str, token: TokenData = Depends(get_current_
         from sqlalchemy import text
         
         with engine.connect() as conn:
-            result = conn.execute(text(approval_request.query))
+            # Clean up the query string: remove formatting backticks and any stray quotes
+            clean_query = approval_request.query.replace('```sql', '').replace('```', '').strip().strip('"').strip("'")
+            result = conn.execute(text(clean_query))
             rows = [dict(row._mapping) for row in result]
         
         # Send real-time update to the user

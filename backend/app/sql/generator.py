@@ -62,4 +62,4 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
         tags=tags or ["sql", "generation"],
         metadata=metadata
     )
-    return sql.replace("```sql", "").replace("```", "").strip()
+    return sql.replace("```sql", "").replace("```", "").strip().strip('"').strip("'")
