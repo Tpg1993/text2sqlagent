@@ -192,7 +192,20 @@ graph LR
 
 ## 🚀 Setup
 
-### 1. Backend Setup
+### 1. Quick Setup (Automated)
+
+We have provided a master initialization script, `init_and_start.ps1`, which automates the entire setup process. 
+
+**Should you run ingestion on every startup?**
+No. It is best practice to run the RAG Data Ingestion (FAISS & Embeddings) **only on initial setup** or when your source documents have changed. Running it on every startup will unnecessarily consume API tokens and time.
+
+To initialize everything (Backend, Frontend, SQLite, and FAISS) and start both servers concurrently:
+
+```powershell
+.\init_and_start.ps1
+```
+
+### 2. Manual Backend Setup
 
 ```powershell
 # Navigate to backend
@@ -228,7 +241,7 @@ uvicorn app.main:app --reload
 
 Server runs on `http://localhost:8000`
 
-### 2. Frontend Setup
+### 3. Manual Frontend Setup
 
 ```bash
 # Navigate to frontend

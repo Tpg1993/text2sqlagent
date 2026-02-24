@@ -29,7 +29,7 @@ def general_node(state: AgentState):
     If the user just says 'hello' or asks a general question, just answer politely.
     """
     
-    messages = [{"role": "system", "content": SYS_PROMPT}] + state['messages']
+    messages = [{"role": "system", "content": SYS_PROMPT}] + state['messages'] + [{"role": "user", "content": state.get('question', '')}]
     
     try:
         response = llm_with_tools.invoke(
