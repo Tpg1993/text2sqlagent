@@ -40,8 +40,16 @@ if ($LASTEXITCODE -ne 0) { throw "Backend dependency installation failed." }
 $env:PYTHONPATH = $BackendDir
 $env:PYTHONIOENCODING = "utf-8"
 
-Write-Output "`n[3/6] Initializing SQLite Database..."
-& $PythonExe -m app.db.init_db
+Write-Output "`n[3/6] Checking SQLite Database..."
+$DatabaseFile = Join-Path $BackendDir "data\sales.db"
+if (-not (Test-Path $DatabaseFile)) {
+    Write-Output "Database not found. Initializing with sample data..."
+    & $PythonExe -m app.db.init_db
+}
+else {
+    Write-Output "Database already exists. Skipping initialization to preserve existing data."
+    Write-Output "To reset it, delete $DatabaseFile and run this script again."
+}
 
 Write-Output "`n[4/6] Checking RAG Embeddings & FAISS Index..."
 $FaissIndexDir = Join-Path $BackendDir "data\faiss_index"

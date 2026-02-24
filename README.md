@@ -194,15 +194,22 @@ graph LR
 
 ### 1. Quick Setup (Automated)
 
-We have provided a master initialization script, `init_and_start.ps1`, which automates the entire setup process. 
+We have provided master initialization scripts (`init_and_start.ps1` for Windows, `init_and_start.sh` for Linux/macOS) which automate the entire setup process. 
 
 **Should you run ingestion on every startup?**
-No. It is best practice to run the RAG Data Ingestion (FAISS & Embeddings) **only on initial setup** or when your source documents have changed. Running it on every startup will unnecessarily consume API tokens and time.
+No. It is best practice to run the RAG Data Ingestion (FAISS & Embeddings) **only on initial setup** or when your source documents have changed. The startup script will intelligently skip FAISS ingestion and SQLite initialization if it detects they are already created, saving you time and API tokens.
 
 To initialize everything (Backend, Frontend, SQLite, and FAISS) and start both servers concurrently:
 
+**For Windows (PowerShell):**
 ```powershell
 .\init_and_start.ps1
+```
+
+**For Linux/macOS (Bash):**
+```bash
+chmod +x init_and_start.sh
+./init_and_start.sh
 ```
 
 ### 2. Manual Backend Setup
