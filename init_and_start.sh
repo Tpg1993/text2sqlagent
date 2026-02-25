@@ -11,8 +11,8 @@
 # 5. Installs frontend dependencies.
 # 6. Starts the backend (FastAPI) and frontend (Vite) servers concurrently.
 
-set -e # Exit on error
-WORKING_DIR="$(pwd)"
+set -e  # Exit on error
+WORKING_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "======================================================="
 echo "🚀 Initializing Agentic Text2SQL & RAG Application Setup"
@@ -29,10 +29,13 @@ if [ ! -d ".venv" ]; then
 fi
 
 PYTHON_EXE="$BACKEND_DIR/.venv/bin/python"
-PIP_EXE="$BACKEND_DIR/.venv/bin/pip"
 
 echo -e "\n[2/6] Installing Backend Dependencies..."
-$PIP_EXE install -r requirements.txt -q
+uv pip install -r requirements.txt -q
+if [ $? -ne 0 ]; then
+    echo "ERROR: Backend dependency installation failed." >&2
+    exit 1
+fi
 
 # Set environment variables for Python scripts
 export PYTHONPATH="$BACKEND_DIR"
@@ -65,33 +68,34 @@ cd "$FRONTEND_DIR"
 
 echo "Running npm install..."
 npm install > /dev/null
+if [ $? -ne 0 ]; then
+    echo "ERROR: Frontend dependency installation failed." >&2
+    exit 1
+fi
 
 # --- 3. Start Servers Concurrently ---
 echo -e "\n[6/6] Starting Applications..."
 cd "$WORKING_DIR"
 
 echo "Starting Backend on port 8000..."
-# Attempting to start python server in background
-cd backend
-# Note: if bash on Windows, 'python' may need to be the actual venv executable. 
-# For Linux/Mac standard execution:
+cd "$BACKEND_DIR"
 $PYTHON_EXE -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 cd "$WORKING_DIR"
 
 echo "Starting Frontend on port 5173..."
-cd frontend
+cd "$FRONTEND_DIR"
 npm run dev &
 FRONTEND_PID=$!
 cd "$WORKING_DIR"
 
-echo -e "\n✅ All services have been launched in the background!"
+echo -e "\n✅ All services have been launched!"
 echo "Frontend: http://localhost:5173"
 echo "Backend API: http://localhost:8000"
-echo "Press Ctrl+C to stop both applications."
 echo "======================================================="
+echo "Press Ctrl+C to stop both servers."
 
-# Catch termination signal to stop background processes cleanly
-trap "echo 'Stopping servers...'; kill $BACKEND_PID $FRONTEND_PID; exit" INT TERM
+# Stop background processes cleanly on Ctrl+C
+trap "echo 'Stopping servers...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
 
 wait

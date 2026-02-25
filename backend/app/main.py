@@ -1,4 +1,5 @@
 import sys
+import asyncio
 
 # Ensure Unicode logs/progress messages don't crash on Windows cp1252 consoles.
 if hasattr(sys.stdout, "reconfigure"):
@@ -145,6 +146,21 @@ def get_ip_limit_value():
 def get_user_limit_value():
     return "10/minute" if settings.ENABLE_USER_RATE_LIMIT else "10000/second"
 
+APPROVAL_TIMEOUT_SECONDS = 300  # 5 minutes
+
+async def auto_reject_after_timeout(request_id: str, timeout: int = APPROVAL_TIMEOUT_SECONDS):
+    """
+    Background task: auto-reject a pending approval after `timeout` seconds.
+    """
+    await asyncio.sleep(timeout)
+    approval_request = approval_manager.get_request(request_id)
+    if approval_request and approval_request.status.value == "pending":
+        approval_manager.reject_request(
+            request_id,
+            reason="Auto-rejected: timed out after 5 minutes with no admin action.",
+            rejector_id="system"
+        )
+
 @app.post(settings.API_V1_STR + "/chat", response_model=ChatResponse)
 # TEMPORARILY REMOVED: Rate limiting causes slowapi response type error
 # @limiter.limit(get_ip_limit_value, key_func=get_remote_address) # Per IP Limit (DoS Protection)
@@ -175,9 +191,11 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
         
         # Check if query requires approval (HITL)
         if result.get("requires_approval") and result.get("approval_status") == "pending":
+            request_id = result.get('approval_request_id')
+            asyncio.create_task(auto_reject_after_timeout(request_id))
             # DO NOT close SSE session here. Keep it open for approval result.
             return ChatResponse(
-                response=f"[WARNING] This query requires approval as it accesses sensitive tables: {', '.join(result.get('sensitive_tables', []))}. Approval request ID: {result.get('approval_request_id')}",
+                response=f"[WARNING] This query requires approval as it accesses sensitive tables: {', '.join(result.get('sensitive_tables', []))}. Approval request ID: {request_id}",
                 data=None,
                 chart=None,
                 approval_status="pending"
@@ -237,9 +255,12 @@ async def test_limit(request: Request):
 @app.post(settings.API_V1_STR + "/approve/{request_id}")
 async def approve_query(request_id: str, token: TokenData = Depends(get_current_user_token)):
     """
-    Approve a pending query. Requires authentication.
+    Approve a pending query. Requires admin authentication.
     """
     from fastapi import HTTPException
+    
+    if token.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to approve queries")
     
     # Get the approval request
     approval_request = approval_manager.get_request(request_id)
@@ -267,16 +288,22 @@ async def approve_query(request_id: str, token: TokenData = Depends(get_current_
             result = conn.execute(text(clean_query))
             rows = [dict(row._mapping) for row in result]
         
-        # Send real-time update to the user
+        # Store results so frontend polling can retrieve them
+        approval_request.results = rows
+
+        # Send real-time update to the user (best effort, may drop on Vite proxy)
         if approval_request.session_id:
-            await sse_manager.send_event(
-                session_id=approval_request.session_id,
-                event_type="approval_result",
-                data={
-                     "response": f"[APPROVED] Query Approved! Executed SQL: {approval_request.query}",
-                     "data": rows
-                }
-            )
+            try:
+                await sse_manager.send_event(
+                    session_id=approval_request.session_id,
+                    event_type="approval_result",
+                    data={
+                         "response": f"[APPROVED] Query executed successfully.",
+                         "data": rows
+                    }
+                )
+            except Exception:
+                pass
 
         return {
             "status": "approved",
@@ -294,9 +321,12 @@ async def approve_query(request_id: str, token: TokenData = Depends(get_current_
 @app.post(settings.API_V1_STR + "/reject/{request_id}")
 async def reject_query(request_id: str, reason: str = "No reason provided", token: TokenData = Depends(get_current_user_token)):
     """
-    Reject a pending query. Requires authentication.
+    Reject a pending query. Requires admin authentication.
     """
     from fastapi import HTTPException
+    
+    if token.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to reject queries")
     
     approval_request = approval_manager.get_request(request_id)
     
@@ -321,14 +351,43 @@ async def reject_query(request_id: str, reason: str = "No reason provided", toke
 @app.get(settings.API_V1_STR + "/pending-approvals")
 async def get_pending_approvals(token: TokenData = Depends(get_current_user_token)):
     """
-    Get all pending approval requests. Requires authentication.
+    Get all pending approval requests. Requires admin authentication.
     """
+    from fastapi import HTTPException
+    
+    if token.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to view pending approvals")
     pending = approval_manager.get_pending_requests()
     
     return {
         "count": len(pending),
         "requests": [req.to_dict() for req in pending]
     }
+
+@app.get(settings.API_V1_STR + "/approval-status/{request_id}")
+async def get_approval_status(request_id: str, token: TokenData = Depends(get_current_user_token)):
+    """
+    Poll the status and results of an approval request.
+    """
+    approval_request = approval_manager.get_request(request_id)
+    
+    if not approval_request:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+    
+    response = {
+        "request_id": request_id,
+        "status": approval_request.status.value,
+        "query": approval_request.query,
+        "sensitive_tables": approval_request.sensitive_tables,
+    }
+    
+    if approval_request.status.value == "approved":
+        response["results"] = getattr(approval_request, 'results', [])
+        response["message"] = approval_request.reason
+    elif approval_request.status.value == "rejected":
+        response["message"] = approval_request.reason
+    
+    return response
 
 if __name__ == "__main__":
     import uvicorn

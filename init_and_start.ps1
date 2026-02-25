@@ -30,10 +30,9 @@ if (-not (Test-Path ".venv")) {
 }
 
 $PythonExe = Join-Path $BackendDir ".venv\Scripts\python.exe"
-$PipExe = Join-Path $BackendDir ".venv\Scripts\pip.exe"
 
 Write-Output "`n[2/6] Installing Backend Dependencies..."
-& $PipExe install -r requirements.txt -q
+uv pip install -r requirements.txt -q
 if ($LASTEXITCODE -ne 0) { throw "Backend dependency installation failed." }
 
 # Set environment variables for Python scripts

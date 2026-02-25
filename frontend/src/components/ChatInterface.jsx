@@ -1,21 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Database, FileText, LogOut } from 'lucide-react';
+import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import ChartRenderer from './ChartRenderer';
-import { chat } from '../api/client';
+import { chat, pollApprovalStatus } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function ChatInterface() {
     const [messages, setMessages] = useState([
-        { role: 'assistant', content: 'Hello! I am Agenthic, data assistant. Ask me about sales data (SQL) or support policies (RAG).' }
+        { role: 'assistant', content: 'Hello! I am Agenthic, your data assistant. Ask me about sales data (SQL) or support policies (RAG).' }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [agentProgress, setAgentProgress] = useState('');
+    // Track active approval polls so we can cancel them on unmount
+    const activePollsRef = useRef({});
     const scrollRef = useRef(null);
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(activePollsRef.current).forEach(cancelFn => cancelFn());
+        };
+    }, []);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -26,6 +35,87 @@ export default function ChatInterface() {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    /**
+     * Start a polling loop for a pending approval request.
+     * Resolves into the chat message list once the admin approves or rejects.
+     * Polls every 3 seconds for up to 10 minutes.
+     */
+    const startApprovalPolling = (requestId, pendingMsgIndex) => {
+        const MAX_POLLS = 100; // 100 × 3s = 5 minutes, matches backend auto-reject timeout
+        let pollCount = 0;
+        let cancelled = false;
+
+        const cancel = () => { cancelled = true; };
+        activePollsRef.current[requestId] = cancel;
+
+        const poll = async () => {
+            if (cancelled || pollCount >= MAX_POLLS) {
+                // Replace pending message with timeout message
+                setMessages(prev => {
+                    const updated = [...prev];
+                    updated[pendingMsgIndex] = {
+                        ...updated[pendingMsgIndex],
+                        content: updated[pendingMsgIndex].content + '\n\n> ⏱️ Approval request timed out after 10 minutes.',
+                        isPending: false,
+                    };
+                    return updated;
+                });
+                delete activePollsRef.current[requestId];
+                return;
+            }
+
+            pollCount++;
+            try {
+                const statusRes = await pollApprovalStatus(requestId);
+
+                if (statusRes.status === 'approved') {
+                    // Replace the pending message with approved result
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        updated[pendingMsgIndex] = {
+                            role: 'assistant',
+                            content: `✅ **Query Approved!** Results are ready:`,
+                            data: statusRes.results || [],
+                            isPending: false,
+                        };
+                        return updated;
+                    });
+                    delete activePollsRef.current[requestId];
+                    return;
+                }
+
+                if (statusRes.status === 'rejected') {
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        updated[pendingMsgIndex] = {
+                            role: 'assistant',
+                            content: `❌ **Query Rejected.** Reason: ${statusRes.message || 'No reason provided.'}`,
+                            isPending: false,
+                        };
+                        return updated;
+                    });
+                    delete activePollsRef.current[requestId];
+                    return;
+                }
+
+                // Still pending — schedule next poll
+                setTimeout(poll, 3000);
+            } catch (err) {
+                if (err.status === 401) {
+                    logout();
+                    navigate('/login');
+                    return;
+                }
+                // Non-fatal: retry after a pause
+                setTimeout(poll, 5000);
+            }
+        };
+
+        // Start first poll after 3 seconds
+        setTimeout(poll, 3000);
+        return cancel;
     };
 
     const handleSubmit = async (e) => {
@@ -43,7 +133,7 @@ export default function ChatInterface() {
                 if (typeof data === 'string') {
                     setAgentProgress(data);
                 } else if (data && data.response) {
-                    // Real-time approval result
+                    // SSE approval result (best-effort)
                     const assistantMsg = {
                         role: 'assistant',
                         content: data.response,
@@ -52,13 +142,40 @@ export default function ChatInterface() {
                     setMessages(prev => [...prev, assistantMsg]);
                 }
             });
-            const assistantMsg = {
-                role: 'assistant',
-                content: res.response,
-                chart: res.chart,
-                data: res.data
-            };
-            setMessages(prev => [...prev, assistantMsg]);
+
+            if (res.approval_status === 'pending' && res.response) {
+                // Extract the request ID from the response message
+                const match = res.response.match(/Approval request ID: ([a-f0-9-]+)/i);
+                const requestId = match ? match[1] : null;
+
+                // Add a pending message that will be updated when approved/rejected
+                setMessages(prev => {
+                    const pendingMsg = {
+                        role: 'assistant',
+                        content: res.response + (requestId
+                            ? `\n\n> ⏳ Waiting for admin approval... The result will appear here automatically.`
+                            : ''),
+                        isPending: !!requestId,
+                    };
+                    const updated = [...prev, pendingMsg];
+
+                    // Start polling now that we know the index
+                    if (requestId) {
+                        const pendingMsgIndex = updated.length - 1;
+                        startApprovalPolling(requestId, pendingMsgIndex);
+                    }
+
+                    return updated;
+                });
+            } else {
+                const assistantMsg = {
+                    role: 'assistant',
+                    content: res.response,
+                    chart: res.chart,
+                    data: res.data
+                };
+                setMessages(prev => [...prev, assistantMsg]);
+            }
         } catch (err) {
             if (err.status === 401) {
                 logout();
@@ -67,7 +184,6 @@ export default function ChatInterface() {
             }
             let errorMsg = "Sorry, something went wrong: " + err.message;
 
-            // Check for rate limit error with retry time
             if (err.data && err.data.retry_after !== undefined && err.data.retry_after !== null) {
                 const seconds = String(err.data.retry_after).replace('s', '');
                 errorMsg = `Rate limit hit: please wait ${seconds} seconds before sending another message.`;
@@ -117,15 +233,23 @@ export default function ChatInterface() {
                             <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 <div className={`p-4 rounded-2xl shadow-sm ${msg.role === 'user'
                                     ? 'bg-indigo-600 text-white rounded-tr-sm'
-                                    : 'bg-slate-800 border border-slate-700 rounded-tl-sm'
+                                    : msg.isPending
+                                        ? 'bg-amber-950/60 border border-amber-700/50 rounded-tl-sm'
+                                        : 'bg-slate-800 border border-slate-700 rounded-tl-sm'
                                     }`}>
+                                    {msg.isPending && (
+                                        <div className="flex items-center gap-2 mb-2 text-amber-400 text-xs">
+                                            <Clock size={12} className="animate-pulse" />
+                                            <span>Waiting for admin approval…</span>
+                                        </div>
+                                    )}
                                     <ReactMarkdown className="prose prose-invert max-w-none text-sm leading-relaxed">
                                         {msg.content}
                                     </ReactMarkdown>
                                 </div>
 
                                 {/* Optional Data Table */}
-                                {msg.data && (
+                                {msg.data && msg.data.length > 0 && (
                                     <div className="bg-slate-900 rounded-lg p-2 border border-slate-700 w-full overflow-x-auto">
                                         <table className="w-full text-xs text-left text-slate-400">
                                             <thead className="text-xs uppercase bg-slate-800 text-slate-300">
@@ -136,16 +260,21 @@ export default function ChatInterface() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {msg.data.slice(0, 5).map((row, i) => ( // Limit rows for view
+                                                {msg.data.slice(0, 50).map((row, i) => (
                                                     <tr key={i} className="border-b border-slate-800 hover:bg-slate-800">
                                                         {Object.values(row).map((val, j) => (
-                                                            <td key={j} className="px-3 py-2">{val}</td>
+                                                            <td key={j} className="px-3 py-2">{String(val)}</td>
                                                         ))}
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
-                                        {msg.data.length > 5 && <p className="text-xs text-center p-1 text-slate-500">Showing top 5 of {msg.data.length} rows</p>}
+                                        {msg.data.length > 50 && <p className="text-xs text-center p-1 text-slate-500">Showing top 50 of {msg.data.length} rows</p>}
+                                    </div>
+                                )}
+                                {msg.data && msg.data.length === 0 && (
+                                    <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-xs text-slate-400 italic">
+                                        Query returned no results.
                                     </div>
                                 )}
 
