@@ -277,6 +277,7 @@ App runs on `http://localhost:5173`
 "What is the return policy?"
 "How long do refunds take?"
 "What are the shipping options?"
+"How do I contact support?"
 ```
 
 ### General Queries
