@@ -5,9 +5,13 @@ from app.utils.state import AgentState
 
 ORCHESTRATOR_PROMPT = """You are a master routing agent.
 Determine if the request requires:
-1. 'sql' - Structured database query (sales, employees, departments, data analysis)
-2. 'rag' - Document search (policies, returns, shipping, support)
-3. 'general' - General chat or greetings
+1. 'sql' - Structured database query (sales, employees, departments, data analysis, company data)
+2. 'rag' - Document search (policies, returns, shipping, support, contacting support, how to contact support)
+3. 'general' - General chat, simple greetings, or asking about external world news that are not about the company's own support.
+
+If the user asks ANYTHING about support, including how to contact support, returning items, or shipping, map it to 'rag'.
+If the user asks for SQL queries, sales info, database records, map to 'sql'.
+Only if it's completely unrelated (e.g. hello, how are you, stock prices), map to 'general'.
 
 Query: {question}
 

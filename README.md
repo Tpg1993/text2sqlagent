@@ -275,7 +275,7 @@ App runs on `http://localhost:5173`
 ### RAG Queries
 ```
 "What is the return policy?"
-"How do I contact support?"
+"How long do refunds take?"
 "What are the shipping options?"
 ```
 
