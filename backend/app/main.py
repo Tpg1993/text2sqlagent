@@ -71,8 +71,10 @@ app.add_middleware(
 print("[DEBUG] App initialization complete (pre-startup)")
 
 
+from pydantic import BaseModel, Field
+
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=4000)
     session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
