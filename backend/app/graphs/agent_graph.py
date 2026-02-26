@@ -307,4 +307,7 @@ workflow.add_conditional_edges("retry", route_retry, {"generate": "generate", "f
 workflow.add_edge("format", "output_guardrail")
 workflow.add_edge("output_guardrail", END)
 
-graph = workflow.compile()
+from langgraph.checkpoint.memory import MemorySaver
+memory = MemorySaver()
+
+graph = workflow.compile(checkpointer=memory)

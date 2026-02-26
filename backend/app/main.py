@@ -176,15 +176,17 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
     print(f"[DEBUG] Chat Endpoint: Received message '{body.message}' Session: {session_id}")
     
     try:
+        from langchain_core.messages import HumanMessage
         initial_state = {
             "question": body.message,
-            "messages": [],
+            "messages": [HumanMessage(content=body.message)],
             "retry_count": 0,
             "session_id": session_id,
             "user_id": current_user.username,
             "user_role": current_user.role
         }
-        result = await graph.ainvoke(initial_state)
+        config = {"configurable": {"thread_id": session_id}}
+        result = await graph.ainvoke(initial_state, config=config)
         
         final_msg = result.get("messages", [""])[-1]
         response_text = final_msg if isinstance(final_msg, str) else final_msg.content
