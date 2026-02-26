@@ -2,12 +2,12 @@
 
 This document outlines the identified gaps in the current AI Red Teaming implementation and the proposed enhancements to make the application fully compliant with advanced AI Red Teaming standards.
 
-## 1. Frontend: Insecure Output Handling (Mitigating XSS)
+## 1. Frontend: Insecure Output Handling (Mitigating XSS) (Done)
 *   **The Threat:** Unsanitized rendering of LLM output could lead to Cross-Site Scripting (XSS) if the LLM is manipulated into generating malicious HTML/JavaScript tags (e.g., `<script>`, `<iframe>`).
 *   **Proposed Enhancement:** Implement strict sanitization on the frontend before rendering markdown/HTML. Use a robust HTML sanitizer library (like `DOMPurify`) to explicitly strip executable tags while allowing safe markdown formatting.
 *   **Estimated Effort:** Low (1-2 Hours)
 
-## 2. Backend API: Model Denial of Service (Context Exhaustion)
+## 2. Backend API: Model Denial of Service (Context Exhaustion) (Done)
 *   **The Threat:** Attackers could send single, excessively large inputs to push the LLM's context window to its limit, potentially exhausting GPU compute time, API quotas, or crashing backend workers.
 *   **Proposed Enhancement:** Add strict length validation to user inputs at the API gateway or endpoint level (e.g., `max_length=4000` characters) before the request reaches the orchestrator or scrubber.
 *   **Estimated Effort:** Low (1 Hour)

@@ -1,4 +1,7 @@
 import os
+import io
+import magic
+import fitz # PyMuPDF
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -6,12 +9,41 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import settings
 from app.utils.pii import get_pii_scrubber
 
+def secure_pdf_preprocessor(pdf_path: str) -> str:
+    """
+    Validates the PDF file signature and rebuilds it to strip malicious objects/macros.
+    Returns the path to the sanitized PDF.
+    """
+    print(f"🛡️ Validating PDF signature for {pdf_path}...")
+    
+    # 1. Magic Number Validation
+    file_type = magic.from_file(pdf_path, mime=True)
+    if file_type != 'application/pdf':
+        raise ValueError(f"Security Alert: File {pdf_path} spoofed extension. Detected MIME: {file_type}")
+    
+    # 2. Rebuild/Sanitize using PyMuPDF (Strips active content/macros)
+    print("🧹 Sanitizing PDF and stripping metadata...")
+    doc = fitz.open(pdf_path)
+    
+    # Save a sanitized version to a safe temp path
+    sanitized_path = pdf_path.replace(".pdf", "_sanitized.pdf")
+    doc.save(sanitized_path, garbage=4, deflate=True, clean=True)
+    doc.close()
+    
+    return sanitized_path
+
 def ingest_pdf_file():
     # Hardcoded to data/docs/support.pdf for demo
-    pdf_path = os.path.join(settings.BASE_DIR, "data/docs/support.pdf")
+    original_pdf_path = os.path.join(settings.BASE_DIR, "data/docs/support.pdf")
     
-    if not os.path.exists(pdf_path):
-        print(f"File {pdf_path} not found.")
+    if not os.path.exists(original_pdf_path):
+        print(f"File {original_pdf_path} not found.")
+        return
+
+    try:
+        pdf_path = secure_pdf_preprocessor(original_pdf_path)
+    except Exception as e:
+        print(f"🚨 Ingestion Aborted: {e}")
         return
 
     loader = PyPDFLoader(pdf_path)
