@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: text2sql-backend-service
+spec:
+  selector:
+    app: text2sql-backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

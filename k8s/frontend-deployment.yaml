@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text2sql-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text2sql-frontend
+  template:
+    metadata:
+      labels:
+        app: text2sql-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: text2sql-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080 # Updated to 8080 for non-root Nginx setup
+        envFrom:
+        - configMapRef:
+            name: text2sql-frontend-config
+        - secretRef:
+            name: text2sql-frontend-secret

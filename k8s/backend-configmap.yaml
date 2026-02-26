@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: text2sql-backend-config
+data:
+  PROJECT_NAME: "Text2SQL RAG System"
+  ENABLE_IP_RATE_LIMIT: "false"
+  ENABLE_USER_RATE_LIMIT: "false"

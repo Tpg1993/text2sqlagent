@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text2sql-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text2sql-backend
+  template:
+    metadata:
+      labels:
+        app: text2sql-backend
+    spec:
+      containers:
+      - name: backend
+        image: text2sql-backend:latest
+        imagePullPolicy: IfNotPresent # Allows using locally built images without pushing to a registry
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: text2sql-backend-config
+        - secretRef:
+            name: text2sql-backend-secret

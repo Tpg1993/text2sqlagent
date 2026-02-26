@@ -263,6 +263,37 @@ npm run dev
 
 App runs on `http://localhost:5173`
 
+### 4. Docker & Kubernetes Setup
+
+The application features optimized Dockerfiles using multi-stage builds and non-root users for both the frontend and backend. 
+Kubernetes manifests are clearly separated into `backend-deployment.yaml`, `backend-service.yaml`, `backend-configmap.yaml`, `backend-secret.yaml` and similarly for the frontend.
+
+**Building the Docker Images:**
+1. Navigate to the `backend` directory and build the backend image:
+```bash
+cd backend
+docker build -t text2sql-backend:latest .
+cd ..
+```
+2. Navigate to the `frontend` directory and build the frontend image:
+```bash
+cd frontend
+docker build -t text2sql-frontend:latest .
+cd ..
+```
+
+**Deploying to Kubernetes:**
+1. Navigate to the `k8s` directory.
+2. Edit the Secret files (`backend-secret.yaml` and `frontend-secret.yaml`) to include your Base64-encoded API keys in the `data` section.
+3. Apply the configurations to your cluster:
+```bash
+kubectl apply -f backend-configmap.yaml -f backend-secret.yaml
+kubectl apply -f backend-deployment.yaml -f backend-service.yaml
+
+kubectl apply -f frontend-configmap.yaml -f frontend-secret.yaml
+kubectl apply -f frontend-deployment.yaml -f frontend-service.yaml
+```
+
 ## 📖 Usage
 
 ### Text2SQL Queries

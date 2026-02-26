@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: text2sql-frontend-config
+data:
+  # Placeholder for frontend config variables
+  VITE_API_BASE_URL: "/api"
