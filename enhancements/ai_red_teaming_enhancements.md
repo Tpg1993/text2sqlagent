@@ -12,7 +12,7 @@ This document outlines the identified gaps in the current AI Red Teaming impleme
 *   **Proposed Enhancement:** Add strict length validation to user inputs at the API gateway or endpoint level (e.g., `max_length=4000` characters) before the request reaches the orchestrator or scrubber.
 *   **Estimated Effort:** Low (1 Hour)
 
-## 3. Backend Agent Logic: Multi-turn / Conversational Jailbreaks
+## 3. Backend Agent Logic: Multi-turn / Conversational Jailbreaks (Done)
 *   **The Threat:** Attackers might use a "many-shot" approach, engaging in several benign interactions to build context before injecting a malicious prompt, exploiting the agent's tendency to drop guard in deep conversations.
 *   **Proposed Enhancement:** Implement a "System Prompt Reminder" mechanism. Ensure core security directives are periodically re-injected or appended to the end of the context window during long conversations. Review memory truncation logic to prevent security directives from being pushed out of the LLM's active memory.
 *   **Estimated Effort:** Medium (3-4 Hours)

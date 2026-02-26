@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import DOMPurify from 'dompurify';
 import ChartRenderer from './ChartRenderer';
 import { chat, pollApprovalStatus } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -244,7 +245,7 @@ export default function ChatInterface() {
                                         </div>
                                     )}
                                     <ReactMarkdown className="prose prose-invert max-w-none text-sm leading-relaxed">
-                                        {msg.content}
+                                        {DOMPurify.sanitize(msg.content)}
                                     </ReactMarkdown>
                                 </div>
 
