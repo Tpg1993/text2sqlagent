@@ -22,12 +22,12 @@ This document outlines the identified gaps in the current AI Red Teaming impleme
 *   **Proposed Enhancement:** Implement robust file-type validation, metadata scrubbing, and potentially an administrative review step/audit log for new document ingestion into the FAISS index. Keep PDF parsing libraries updated to patch known vulnerabilities.
 *   **Estimated Effort:** Medium (3-5 Hours)
 
-## 5. Backend Tooling: Hallucination Mitigation (Business Logic Fuzzing)
+## 5. Backend Tooling: Hallucination Mitigation (Business Logic Fuzzing) (Done)
 *   **The Threat:** The agent could be manipulated into confidently hallucinating invalid or harmful SQL queries, leading to incorrect business metrics or application errors.
 *   **Proposed Enhancement:** Strengthen the SQL `Generate` tool or `Validate` node with stricter schema validation (failing exactly if referenced columns/tables don't exist in the live schema). Enforce a "chain of thought" reflection step before execution.
 *   **Estimated Effort:** Medium to High (4-6 Hours)
 
-## 6. Pentest Suite Update: Expanding `run_pentest.py`
+## 6. Pentest Suite Update: Expanding `run_pentest.py` (Done)
 *   **The Threat:** The current automated testing suite does not cover the advanced vectors listed above.
 *   **Proposed Enhancement:** Update `run_pentest.py` and the test plan to include tests for:
     *   XSS injection via `<iframe>` tags.
