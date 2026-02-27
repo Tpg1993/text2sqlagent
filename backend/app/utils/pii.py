@@ -60,7 +60,7 @@ class PIIScrubber:
                 text=text,
                 analyzer_results=results,
                 operators={
-                    "DEFAULT": OperatorConfig("replace", {"new_value": "<{entity_type}>"})
+                    "DEFAULT": OperatorConfig("replace")
                 }
             )
             
