@@ -32,9 +32,9 @@ def secure_pdf_preprocessor(pdf_path: str) -> str:
     
     return sanitized_path
 
-def ingest_pdf_file():
-    # Hardcoded to data/docs/support.pdf for demo
-    original_pdf_path = os.path.join(settings.BASE_DIR, "data/docs/support.pdf")
+def ingest_pdf_file(file_path: str = None):
+    # Hardcoded to data/docs/support.pdf for demo if not provided
+    original_pdf_path = file_path or os.path.join(settings.BASE_DIR, "data/docs/support.pdf")
     
     if not os.path.exists(original_pdf_path):
         print(f"File {original_pdf_path} not found.")

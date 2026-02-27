@@ -245,9 +245,49 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
         # Re-raise to let FastAPI handle it (or return 500)
         raise HTTPException(status_code=500, detail=str(e))
 
+from fastapi import UploadFile, File, BackgroundTasks
+import shutil
+import os
+
+def run_ingestion(filepath: str):
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        from app.rag.ingest import ingest_pdf_file
+        logger.info(f"Starting background ingestion for {filepath}")
+        ingest_pdf_file(filepath)
+        logger.info("Background ingestion completed")
+    except Exception as e:
+        logger.error(f"Background ingestion failed: {e}")
+
+@app.post(settings.API_V1_STR + "/upload-docs")
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    token: TokenData = Depends(get_current_user_token)
+):
+    if token.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required to upload documents")
+    
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        
+    save_dir = os.path.join(settings.BASE_DIR, "data", "docs")
+    os.makedirs(save_dir, exist_ok=True)
+    
+    file_path = os.path.join(save_dir, file.filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    background_tasks.add_task(run_ingestion, file_path)
+    
+    return {"message": f"File {file.filename} uploaded successfully. Ingestion started in background."}
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get(settings.API_V1_STR + "/test-limit")
 @limiter.limit("2/minute")
