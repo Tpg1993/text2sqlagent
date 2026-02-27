@@ -205,12 +205,26 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
                 approval_status="pending"
             )
         
+        # De-anonymize the final response and data before sending to user
+        from app.db.vault import deanonymize_text
+        
+        response_text = deanonymize_text(response_text)
+        
+        # We also need to deanonymize the SQL result data if it's there
+        final_data = result.get("sql_result")
+        if isinstance(final_data, list):
+            # Iterate through rows and columns to find tokens and replace them
+            for row in final_data:
+                for k, v in row.items():
+                    if isinstance(v, str):
+                        row[k] = deanonymize_text(v)
+        
         # Close SSE session for normal requests
         sse_manager.close_session(session_id)
         
         return ChatResponse(
             response=response_text,
-            data=result.get("sql_result") if isinstance(result.get("sql_result"), list) else None,
+            data=final_data,
             chart=result.get("visualization_spec")
         )
     except Exception as e:
