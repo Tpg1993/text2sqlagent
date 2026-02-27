@@ -95,3 +95,4 @@ reportlab
 # Evaluation dependencies
 ragas
 datasets
+deepeval

@@ -356,6 +356,47 @@ The application uses **OpenTelemetry** for tracing:
 - LLM calls are instrumented
 - Export to LangSmith or other OTLP-compatible backends
 
+## 🧪 Continuous Evaluation
+
+The project includes a **4-pillar evaluation framework** for every AI pipeline.
+All scripts are in `backend/evaluation/` and can run locally or in CI (Azure DevOps).
+
+| Pillar | Tool | Script | Purpose |
+|---|---|---|---|
+| **Orchestrator** | Custom golden dataset (70 cases) | `eval_orchestrator.py` | Routing accuracy ≥ 95% |
+| **RAG** | RAGAS (faithfulness, relevancy) | `eval_rag.py` | Answer quality & retrieval |
+| **Text2SQL** | DeepEval + structural checks | `eval_text2sql.py` | SQL correctness, zero hallucination |
+| **General Agent** | LLM-as-a-judge (Gemini) | `eval_general.py` | Safety & helpfulness |
+
+### Quick Start — Evaluation
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+
+# Install eval dependencies (one-time)
+pip install ragas datasets deepeval
+
+# Run individual evals (dev mode — limited cases)
+python evaluation/eval_orchestrator.py --limit 10
+python evaluation/eval_rag.py --limit 5
+python evaluation/eval_text2sql.py --limit 5
+python evaluation/eval_general.py --limit 5
+
+# Security-critical test — run separately, always
+python evaluation/eval_general.py --category jailbreak
+python evaluation/eval_general.py --category harmful_content
+
+# Full CI run (all cases, thresholds enforced)
+python evaluation/eval_orchestrator.py
+python evaluation/eval_rag.py
+python evaluation/eval_text2sql.py
+python evaluation/eval_general.py
+```
+
+Reports saved to `backend/evaluation/reports/` as timestamped JSON files.
+See `documentation/evaluation/` for detailed docs on each pillar (`01`–`04`).
+
 ## 🗂️ Project Structure
 
 ```
@@ -373,7 +414,19 @@ The application uses **OpenTelemetry** for tracing:
 │   ├── data/
 │   │   ├── docs/            # PDF documents
 │   │   └── faiss_index/     # FAISS vector store
+│   ├── evaluation/          # 🧪 Continuous Evaluation
+│   │   ├── eval_orchestrator.py   # Routing accuracy (golden dataset)
+│   │   ├── eval_rag.py            # RAG quality (RAGAS)
+│   │   ├── eval_text2sql.py       # SQL quality (DeepEval)
+│   │   ├── eval_general.py        # General agent (LLM-as-a-judge)
+│   │   ├── datasets/              # Golden datasets (CSV)
+│   │   └── reports/               # Timestamped JSON reports
 │   └── requirements.txt
+├── documentation/
+│   ├── evaluation/          # Eval design docs (01–04)
+│   ├── LLD.md
+│   ├── HLD.md
+│   └── SECURITY_MEASURES.md
 └── frontend/
     ├── src/
     │   ├── components/      # React components
