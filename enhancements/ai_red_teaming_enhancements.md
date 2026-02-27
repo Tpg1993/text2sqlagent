@@ -17,7 +17,7 @@ This document outlines the identified gaps in the current AI Red Teaming impleme
 *   **Proposed Enhancement:** Implement a "System Prompt Reminder" mechanism. Ensure core security directives are periodically re-injected or appended to the end of the context window during long conversations. Review memory truncation logic to prevent security directives from being pushed out of the LLM's active memory.
 *   **Estimated Effort:** Medium (3-4 Hours)
 
-## 4. Vector DB / RAG: Ingestion Pipeline Security
+## 4. Vector DB / RAG: Ingestion Pipeline Security (Done)
 *   **The Threat:** Attackers could upload poisoned documents (e.g., PDFs with hidden text, malicious macros, or adversarial noise) to the RAG database, altering the application's knowledge base and future RAG answers.
 *   **Proposed Enhancement:** Implement robust file-type validation, metadata scrubbing, and potentially an administrative review step/audit log for new document ingestion into the FAISS index. Keep PDF parsing libraries updated to patch known vulnerabilities.
 *   **Estimated Effort:** Medium (3-5 Hours)

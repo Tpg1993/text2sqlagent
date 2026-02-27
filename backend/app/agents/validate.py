@@ -10,6 +10,23 @@ def validate_node(state: AgentState):
     # Check for destructive operations
     if "DROP" in sql_upper or "DELETE" in sql_upper or "UPDATE" in sql_upper or "ALTER" in sql_upper:
         return {"sql_valid": False, "error": "Unsafe SQL detected."}
+        
+    # Strict Schema Validation (Hallucination Mitigation)
+    from app.sql.schema import get_valid_tables_and_columns
+    import re
+    
+    valid_schema = get_valid_tables_and_columns()
+    valid_tables = list(valid_schema.keys())
+    
+    # Very basic parsing to find potential table names (words following FROM or JOIN)
+    # This is a naive heuristic but works well for basic to intermediate queries
+    matches = re.findall(r'(?:FROM|JOIN)\s+([a-zA-Z0-9_]+)', sql_upper)
+    for match in matches:
+        table_name = match.lower()
+        if table_name not in valid_tables:
+            error_msg = f"Hallucination Detected: Table '{table_name}' does not exist in the database schema."
+            print(f"❌ {error_msg}")
+            return {"sql_valid": False, "error": error_msg}
     
     # Check if query touches sensitive tables (HITL)
     is_sensitive, sensitive_tables = approval_manager.is_query_sensitive(sql)

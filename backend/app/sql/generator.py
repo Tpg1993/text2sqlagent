@@ -27,7 +27,15 @@ Write a SQL query to answer the user's question: {question}
 
 {error_context}
 
-Return ONLY the SQL string. Do not use markdown backticks.
+CRITICAL INSTRUCTIONS FOR HALLUCINATION MITIGATION:
+1. ONLY use column names and table names explicitly defined in the provided schema.
+2. DO NOT hallucinate, guess, or assume any columns exist if they are not in the schema.
+3. Before writing the SQL, briefly explain your reasoning (Chain of Thought), ensuring every column you plan to use actually exists.
+4. Format your output strictly as:
+-- REASONING: <brief 1-line explanation>
+<The actual SQL string>
+
+Return ONLY the commented reasoning followed by the SQL string. Do not use markdown backticks.
 """
 
 def generate_plan(schema: str, question: str, tags: Optional[list] = None, metadata: Optional[dict] = None) -> str:
@@ -62,4 +70,17 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
         tags=tags or ["sql", "generation"],
         metadata=metadata
     )
-    return sql.replace("```sql", "").replace("```", "").strip().strip('"').strip("'")
+    
+    # Strip markdown and reasoning
+    raw_response = sql.replace("```sql", "").replace("```", "").strip().strip('"').strip("'")
+    
+    # Extract only the SQL if reasoning is present
+    lines = raw_response.split('\n')
+    filtered_lines = []
+    for line in lines:
+        if line.strip().startswith("-- REASONING:"):
+            continue # Skip reasoning
+        filtered_lines.append(line)
+        
+    final_sql = "\n".join(filtered_lines).strip()
+    return final_sql
