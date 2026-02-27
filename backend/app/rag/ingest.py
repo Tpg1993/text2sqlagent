@@ -82,5 +82,10 @@ def ingest_pdf_file(file_path: str = None):
     vectorstore.save_local(settings.FAISS_INDEX_PATH)
     print(f"Ingested {len(splits)} chunks into FAISS.")
 
+    # Clean up the sanitized temp PDF — prevents accumulation of *_sanitized*.pdf files
+    if pdf_path != original_pdf_path and os.path.exists(pdf_path):
+        os.remove(pdf_path)
+        print(f"🧹 Removed sanitized temp file: {pdf_path}")
+
 if __name__ == "__main__":
     ingest_pdf_file()
