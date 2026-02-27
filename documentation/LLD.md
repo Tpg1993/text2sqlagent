@@ -36,7 +36,8 @@ backend/
 │   │   └── sse_manager.py      # Server-Sent Events manager
 │   │
 │   ├── db/                     # Database management
-│   │   └── init_db.py          # SQLite initialization
+│   │   ├── init_db.py          # SQLite initialization
+│   │   └── vault.py            # Two-Way PII Vault (token store & retrieval)
 │   │
 │   └── rag/                    # RAG components
 │       ├── ingest.py           # PDF ingestion with PII scrubbing
@@ -72,8 +73,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
     1. Generate session_id
     2. Create initial state with question
     3. Invoke LangGraph workflow
-    4. Extract final response from state
-    5. Return ChatResponse
+    4. Extract final response text from state
+    5. De-anonymize response via deanonymize_text() (restore PII tokens → originals)
+    6. Return ChatResponse
     
     Error Handling:
     - RateLimitException → 429 with retry_after
@@ -441,14 +443,24 @@ class GuardrailManager:
         return True, None
 ```
 
-#### 2.4.2 PII Scrubber (`pii.py`)
+#### 2.4.2 PII Scrubber (`pii.py`) + PII Vault (`vault.py`)
 
+The system implements **Two-Way PII Tokenization** — PII is replaced with secure tokens at ingestion time and restored to original values at query-response time.
+
+**Ingestion (One-Time):**
 ```python
 class PIIScrubber:
     def __init__(self):
-        """Initialize Presidio engines."""
+        """Initialize Presidio with a custom alphanumeric phone recognizer."""
         self.analyzer = AnalyzerEngine()
-        self.anonymizer = AnonymizerEngine()
+        # Custom recognizer for vanity numbers like 1-800-COMPANY
+        custom_phone_recognizer = PatternRecognizer(
+            supported_entity="PHONE_NUMBER",
+            name="alphanumeric_phone_recognizer",
+            patterns=[Pattern("alphanumeric_phone",
+                r"\b1-[0-9]{3}-[A-Z0-9]{4,10}\b|\b[0-9]{3}-[A-Z0-9]{4,10}\b", 0.8)]
+        )
+        self.analyzer.registry.add_recognizer(custom_phone_recognizer)
         self.entities_to_detect = [
             "PHONE_NUMBER", "EMAIL_ADDRESS", "CREDIT_CARD",
             "US_SSN", "PERSON", "LOCATION", ...
@@ -456,33 +468,44 @@ class PIIScrubber:
     
     def scrub_text(self, text: str, language: str = "en") -> str:
         """
-        Detect and anonymize PII.
+        Detect PII, filter overlapping detections, tokenize using vault.
         
         Logic:
         1. Analyze text with Presidio
-        2. Get list of detected entities
-        3. Anonymize with placeholder replacement
-        4. Return scrubbed text
+        2. Filter overlapping entities (greedy approach — largest span wins)
+        3. For each entity, call store_pii() to get a unique token
+        4. Replace original value in text with token
+        5. Return scrubbed text
         
         Example:
-            Input: "Call me at 555-0100"
-            Output: "Call me at <PHONE_NUMBER>"
+            Input:  "Call us at 1-800-COMPANY or email info@co.com"
+            Output: "Call us at [PII_PHONE_NUMBER_a1b2c3d4] or email [PII_EMAIL_ADDRESS_e5f6a7b8]"
         """
-        results = self.analyzer.analyze(
-            text=text,
-            entities=self.entities_to_detect,
-            language=language
-        )
-        
-        anonymized_result = self.anonymizer.anonymize(
-            text=text,
-            analyzer_results=results,
-            operators={
-                "DEFAULT": OperatorConfig("replace", {"new_value": "<{entity_type}>"})
-            }
-        )
-        
-        return anonymized_result.text
+```
+
+**PII Vault (`vault.py`):**
+```python
+def store_pii(entity_type: str, original_value: str) -> str:
+    """
+    Store PII in a secure SQLite table and return a deterministic token.
+    If the same value already exists, returns the existing token (de-duplication).
+    
+    Token format: [PII_<ENTITY_TYPE>_<8-char-uuid-hex>]
+    Example:      [PII_EMAIL_ADDRESS_a1b2c3d4]
+    """
+
+def retrieve_pii(token: str) -> str:
+    """
+    Retrieve original PII value for a given token.
+    Returns the token itself if not found (fail-safe).
+    """
+
+def deanonymize_text(text: str) -> str:
+    """
+    Scan text for [PII_...] tokens and replace with original values.
+    Also converts any legacy <TAG> style tokens to bracket form for UI safety.
+    Called in /chat endpoint on the final LLM response before sending to user.
+    """
 ```
 
 ### 2.5 LLM Invocation (`llm.py`)
@@ -625,6 +648,36 @@ CREATE TABLE customers (
   "retry_after": "60"
 }
 ```
+
+### 4.2 POST /upload-docs *(Admin Only)*
+
+Allows admin users to upload a PDF document. The ingestion pipeline (PII scrubbing, embedding, FAISS indexing) runs as a background task.
+
+**Auth**: Bearer token required. Role must be `admin`.
+
+**Request**: `multipart/form-data` with a PDF file field `file`.
+
+**Response (Success)**:
+```json
+{
+  "message": "File 'support.pdf' uploaded and ingestion started in the background."
+}
+```
+
+**Response (Unauthorized)**:
+```json
+{
+  "detail": "Admin access required."
+}
+```
+
+**Response (Invalid File)**:
+```json
+{
+  "detail": "Only PDF files are allowed."
+}
+```
+
 
 ### 4.2 GET /sse/{session_id}
 

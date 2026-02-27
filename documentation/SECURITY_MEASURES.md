@@ -100,10 +100,20 @@ This mapping ensures strong separation of duties, minimizes risk, and aligns wit
 
 ### **Name: Output Guardrails**
 *   **Prevents**: Data Leakage, Hallucination, Toxic Output.
-*   **Uses**: NeMo Guardrails response validation.
+*   **Uses**: NeMo Guardrails response validation + Two-Way PII De-anonymization.
 *   **Remediation**:
     *   The final response from the LLM is checked against safety policies.
-    *   If the output contains PII or violates content policy, it is redacted or replaced with a standard fallback message.
+    *   If the output violates content policy, it is replaced with a standard fallback message.
+    *   **PII De-anonymization**: The `deanonymize_text()` function in `vault.py` is applied to every response before it is sent to the user. It replaces secure `[PII_ENTITY_xxxxxxxx]` tokens with the original PII values that were stored in the vault at ingestion time, restoring the data correctly and securely only at the final output boundary.
+
+### **Name: Two-Way PII Tokenization System**
+*   **Prevents**: PII Exposure in Vector Database, LLM Training Data Leakage.
+*   **Uses**: `PIIScrubber` in [app/utils/pii.py](../backend/app/utils/pii.py) + `PII Vault` in [app/db/vault.py](../backend/app/db/vault.py).
+*   **Remediation**:
+    *   **At Ingestion (Upload Time)**: Every PDF document is processed by the `PIIScrubber`. Detected PII (emails, phone numbers, names, etc.) is replaced with unique, opaque tokens e.g. `[PII_EMAIL_ADDRESS_a1b2c3d4]`. The original values are stored in a secure SQLite `pii_vault` table. Only the tokenized text is embedded into FAISS.
+    *   **Custom Detection**: A custom `PatternRecognizer` extends Presidio to detect alphanumeric phone numbers such as `1-800-COMPANY` which the default model misses.
+    *   **At Query Time (Chat Response)**: After the LLM generates its answer (using only tokenized context), `deanonymize_text()` scans the response for `[PII_...]` tokens and swaps them back to original values before the UI receives the response.
+    *   **Token Safety**: Tokens use `[...]` bracket notation (not `<...>`) to prevent them from being silently swallowed by HTML parsers in the browser as invisible DOM elements.
 
 ---
 
