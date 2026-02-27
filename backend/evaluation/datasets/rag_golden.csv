@@ -1,0 +1,21 @@
+query,ground_truth,category,notes
+"How do I return a product?","You can return a product by contacting customer support within 30 days of purchase with your order details and reason for return.",return_policy,Core return policy question
+"What is the return window?","Products can be returned within 30 days of the original purchase date.",return_policy,Return timeframe
+"What items cannot be returned?","Perishable goods, digital downloads, and items marked as final sale cannot be returned.",return_policy,Return exclusions
+"Do I need a receipt to return an item?","Yes, you need proof of purchase such as your order confirmation email or receipt to process a return.",return_policy,Return requirements
+"Can I exchange a product instead of returning it?","Yes, you can request an exchange for a different size or color of the same product when initiating a return.",return_policy,Exchange policy
+"How do I contact customer support?","You can contact customer support via email at support@company.com or by calling our helpline during business hours.",support_contact,Contact channels
+"What are customer support hours?","Customer support is available Monday to Friday from 9 AM to 6 PM.",support_contact,Support availability
+"How long does it take to get a response from support?","Customer support typically responds within 24 to 48 hours of receiving your query.",support_contact,Response time
+"How do I escalate a support issue?","If your issue is not resolved within 48 hours, you can request escalation by replying to the support email with the word ESCALATE in the subject line.",support_contact,Escalation process
+"What shipping methods are available?","We offer standard shipping, express shipping, and same-day delivery in select areas.",shipping_policy,Shipping options
+"How long does standard shipping take?","Standard shipping typically takes 5 to 7 business days.",shipping_policy,Shipping duration
+"Is there free shipping available?","Free standard shipping is available on all orders above a minimum order value as specified at checkout.",shipping_policy,Free shipping threshold
+"Can I track my order?","Yes, once your order is shipped you will receive a tracking number via email that you can use on our tracking portal.",shipping_policy,Order tracking
+"What happens if my order is damaged during shipping?","If your order arrives damaged, please contact support within 48 hours with photos of the damage and we will arrange a replacement or refund.",shipping_policy,Damaged goods
+"Do you offer international shipping?","Yes, we ship to a number of international locations. Shipping times and fees vary by destination.",shipping_policy,International shipping
+"What is the refund process?","Once your return is received and inspected, a refund will be issued to your original payment method within 7 to 10 business days.",refund_policy,Refund timeline
+"Will I get a full refund?","Yes, you will receive a full refund for the product price. Original shipping charges are non-refundable unless the return is due to our error.",refund_policy,Refund amount
+"How do I get a refund for a defective product?","Contact support with your order number and a description or photo of the defect. A full refund or replacement will be arranged.",refund_policy,Defective product refund
+"How do I cancel an order?","You can cancel an order within 1 hour of placing it by contacting customer support. After 1 hour, the order may already be processed.",order_management,Order cancellation
+"Can I change my shipping address after ordering?","You can request a shipping address change within 1 hour of placing your order by contacting support immediately.",order_management,Address change
