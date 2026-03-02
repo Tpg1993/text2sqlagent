@@ -130,11 +130,11 @@ graph TD
 
 ```mermaid
 graph LR
-    A[PDF Document] --> B[Load & Split<br/>Chunks]
-    B --> C["🔒 PII Scrubber<br/>(Presidio)"]
-    C --> D[Anonymized Text<br/>&lt;EMAIL&gt; &lt;PHONE&gt;]
-    D --> E[Create Embeddings<br/>(Google AI)]
-    E --> F[Store in FAISS<br/>Vector DB]
+    A[PDF Document] --> B[Load and Split Chunks]
+    B --> C["PII Scrubber - Presidio"]
+    C --> D["Anonymized: EMAIL and PHONE tokens"]
+    D --> E["Create Embeddings - Google AI"]
+    E --> F[Store in FAISS Vector DB]
     
     style C fill:#E74C3C,stroke:#C0392B,color:#fff
     style D fill:#2ECC71,stroke:#27AE60,color:#fff
