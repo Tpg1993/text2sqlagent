@@ -10,7 +10,7 @@ A production-grade, modular Agentic application with **NeMo Guardrails** and **P
 - **📊 Text2SQL**: Natural language to SQL query generation with retry logic
 - **📚 RAG (Retrieval-Augmented Generation)**: Document-based question answering with FAISS vector store
 - **📈 Visualization**: Automatic chart generation with Vega-Lite
-- **⚡ Real-time Progress**: (Temporarily Disabled) SSE-based agent step updates are currently bypassed for backend stability.
+- **⚡ Real-time Progress**: SSE-based agent step updates stream live per agent node (orchestrator, generate, execute, etc.).
 
 ## 🏗️ Architecture
 
@@ -87,34 +87,34 @@ graph TB
 
 ```mermaid
 graph TD
-    Start([User Query]) --> InputGuard["🛡️ Input Guardrail<br/>(NeMo Validation)"]
+    Start([User Query]) --> InputGuard["Input Guardrail - NeMo Validation"]
     
-    InputGuard -->|blocked| Format["✨ Format<br/>(Error Message)"]
-    InputGuard -->|allowed| Orchestrator["🤖 Orchestrator<br/>(LLM: Classify Intent)"]
+    InputGuard -->|blocked| Format["Format - Error Message"]
+    InputGuard -->|allowed| Orchestrator["Orchestrator - LLM Classify Intent"]
     
-    Orchestrator -->|intent='sql'| Schema["📋 Schema<br/>(Fetch DB Schema)"]
-    Orchestrator -->|intent='rag'| Retrieve["🔍 Retrieve<br/>(FAISS Search)"]
+    Orchestrator -->|intent=sql| Schema["Schema - Fetch DB Schema"]
+    Orchestrator -->|intent=rag| Retrieve["Retrieve - FAISS Search"]
     Orchestrator -->|intent='general'| Format
     
-    Schema --> Generate["✍️ Generate<br/>(LLM: Create SQL)"]
-    Generate --> Validate["✅ Validate<br/>(Syntax Check)"]
+    Schema --> Generate["Generate - LLM Create SQL"]
+    Generate --> Validate["Validate - Syntax Check"]
     
-    Validate -->|valid| Execute["⚡ Execute<br/>(Run Query)"]
-    Validate -->|invalid| Retry["🔄 Retry<br/>(Max 3)"]
+    Validate -->|valid| Execute["Execute - Run Query"]
+    Validate -->|invalid| Retry["Retry - Max 3"]
     
-    Execute --> Evaluate["📊 Evaluate<br/>(Check Results)"]
+    Execute --> Evaluate["Evaluate - Check Results"]
     Evaluate -->|error| Retry
-    Evaluate -->|success| Chart["📈 Chart<br/>(Vega-Lite)"]
+    Evaluate -->|success| Chart["Chart - Vega-Lite"]
     
     Retry -->|count>3| Format
     Retry -->|count≤3| Generate
     
     Chart --> Format
     
-    Retrieve --> RAGGen["💬 RAG Generate<br/>(LLM: Answer)"]
+    Retrieve --> RAGGen["RAG Generate - LLM Answer"]
     RAGGen --> Format
     
-    Format --> OutputGuard["🛡️ Output Guardrail<br/>(Safety Check)"]
+    Format --> OutputGuard["Output Guardrail - Safety Check"]
     OutputGuard --> End([Response to User])
     
     style InputGuard fill:#FFD700,stroke:#FFA500,color:#000
@@ -180,7 +180,9 @@ graph LR
 - **Microsoft Presidio** - PII detection
 - **SQLite** - Business data storage
 - **FAISS** - Vector store for RAG
-- **Google Gemini 2.0 Flash** - Primary LLM
+- **Google Gemini 2.0 Flash** - Secondary LLM
+- **Sarvam AI** - Primary LLM (Indian multilingual, OpenAI-compatible)
+- **OpenAI GPT-4o-mini** - Tertiary fallback LLM
 - **OpenTelemetry** - Observability
 
 ## 📋 Prerequisites
@@ -333,8 +335,9 @@ Expected: Request blocked with safety message.
 
 ## 📊 API Endpoints
 
-- `POST /chat` - Main chat endpoint
-- `GET /sse/{session_id}` - (Disabled) Server-Sent Events for progress
+- `POST /chat` - Main chat endpoint (creates SSE session per request)
+- `GET /sse/{session_id}` - Server-Sent Events for live agent step progress (active)
+- `POST /upload-docs` - Upload PDF for RAG ingestion (admin only)
 - `GET /health` - Health check
 
 ## 🔐 User Roles & Credentials (Mock Auth)

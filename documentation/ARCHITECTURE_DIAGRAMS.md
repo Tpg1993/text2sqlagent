@@ -14,7 +14,7 @@ C4Context
     }
     
     System_Ext(gemini, "Google Gemini API", "LLM for intent classification, SQL generation, RAG")
-    System_Ext(openai, "OpenAI API", "Fallback LLM (disabled)")
+    System_Ext(sarvam, "Sarvam AI API", "Primary LLM")
     
     Rel(user, frontend, "Asks questions", "HTTPS")
     Rel(frontend, backend, "Sends queries", "REST API + SSE")
@@ -132,7 +132,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     A[PDF Document] --> B[PyPDFLoader]
-    B --> C[Split into Chunks<br/>1000 chars, 200 overlap]
+    B --> C["Split into Chunks - 1000 chars, 200 overlap"]
     C --> D{For Each Chunk}
     
     D --> E[Presidio Analyzer]
@@ -141,7 +141,7 @@ flowchart LR
     F -->|Yes| G[Presidio Anonymizer]
     F -->|No| H[Keep Original]
     
-    G --> I[Replace with Placeholders<br/>&lt;EMAIL&gt; &lt;PHONE&gt;]
+    G --> I["Replace with Vault Tokens: EMAIL / PHONE / SSN"]
     I --> J[Create Embeddings]
     H --> J
     
@@ -197,30 +197,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[LLM Call Needed] --> TryGemini[Try Google Gemini 2.0]
-    
-    TryGemini --> CheckError{Error?}
-    
-    CheckError -->|No Error| Success[Return Response]
-    CheckError -->|Rate Limit 429| RateLimit[Extract retry_after]
-    CheckError -->|Other Error| TryOpenAI[Try OpenAI GPT-4o]
-    
-    RateLimit --> FailFast[Raise RateLimitException]
-    FailFast --> UserWait[User Sees Wait Time]
-    
-    TryOpenAI --> CheckOpenAI{Error?}
-    CheckOpenAI -->|No Error| Success
-    CheckOpenAI -->|Error| Fail[Raise Exception]
-    
-    Success --> End([Complete])
-    UserWait --> End
-    Fail --> End
-    
-    style TryGemini fill:#4285F4,color:#fff
-    style TryOpenAI fill:#10A37F,color:#fff
-    style RateLimit fill:#E74C3C,color:#fff
-    style Success fill:#2ECC71,color:#fff
-```
+    Start[LLM Call Needed] --> TrySarvam[Try Sarvam AI]
+
+    TrySarvam --> CheckSarvam{Error?}
+
+    CheckSarvam -->|No Error| Success[Return Response]
+    CheckSarvam -->|Error| TryGemini[Try Google Gemini 2.0]
+    TryGemini --> CheckGemini{Error?}
+
+    CheckGemini -->|No Error| Success
+    CheckGemini -->|Rate Limit 429| RateLimit[Extract retry_after]
+    CheckGemini -->|Other Error| TryOpenAI[Try OpenAI GPT-4o]
+
+    RateLimit --> FailFast[Raise RateLimitException]
+    FailFast --> UserWait[User Sees Wait Time]
+
+    TryOpenAI --> CheckOpenAI{Error?}
+    CheckOpenAI -->|No Error| Success
+    CheckOpenAI -->|Error| Fail[Raise Exception]
+
+    Success --> End([Complete])
+    UserWait --> End
+    Fail --> End
+
+    style TrySarvam fill:#FF6B35,color:#fff
 
 ## 8. Database Schema ER Diagram
 
@@ -297,11 +297,11 @@ graph TB
     end
     
     subgraph CDN["CDN Layer"]
-        Vercel[Vercel<br/>Static Hosting]
+    Vercel["Vercel - Static Hosting"]
     end
     
     subgraph API["API Layer"]
-        CloudRun[Google Cloud Run<br/>Docker Container]
+    CloudRun["Google Cloud Run - Docker Container"]
         LB[Load Balancer]
     end
     
@@ -311,8 +311,8 @@ graph TB
     end
     
     subgraph Data["Data Layer"]
-        SQLiteFile[SQLite File<br/>Persistent Volume]
-        FAISSFile[FAISS Index<br/>Persistent Volume]
+    SQLiteFile["SQLite File - Persistent Volume"]
+    FAISSFile["FAISS Index - Persistent Volume"]
     end
     
     Browser --> Vercel
@@ -414,14 +414,14 @@ graph LR
     end
     
     subgraph Defense["Defense Layers"]
-        Layer1[Input Guardrail<br/>NeMo]
-        Layer2[Intent Classification<br/>LLM]
-        Layer3[PII Scrubbing<br/>Presidio]
-        Layer4[Output Guardrail<br/>NeMo]
+        Layer1["Input Guardrail - NeMo"]
+        Layer2["Intent Classification - LLM"]
+        Layer3["PII Scrubbing - Presidio"]
+        Layer4["Output Guardrail - NeMo"]
     end
     
     subgraph Safe["Safe Output"]
-        User[User Receives<br/>Safe Response]
+        User["User Receives Safe Response"]
     end
     
     Jailbreak --> Layer1

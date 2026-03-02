@@ -10,7 +10,7 @@ The application is an intelligent agent-based system that processes natural lang
 graph TB
     subgraph Client["Client Layer"]
         WebUI[React Web UI]
-        SSE["SSE Client - Disabled"]
+        SSE["SSE Client - Active"]
     end
     
     subgraph API["API Gateway Layer"]
@@ -37,8 +37,9 @@ graph TB
     end
     
     subgraph LLM["LLM Layer"]
-        Gemini[Google Gemini 2.0]
-        OpenAI["OpenAI GPT-4o - Fallback"]
+        Sarvam["Sarvam AI - Primary"]
+        Gemini["Google Gemini 2.0 - Secondary"]
+        OpenAI["OpenAI GPT-4o - Tertiary Fallback"]
     end
     
     subgraph Data["Data Layer"]
@@ -56,10 +57,11 @@ graph TB
     Orchestrator --> RAG
     Orchestrator --> General
     
-    SQL --> Gemini
-    RAG --> Gemini
-    General --> Gemini
+    SQL --> Sarvam
+    RAG --> Sarvam
+    General --> Sarvam
     
+    Sarvam -.fallback.-> Gemini
     Gemini -.fallback.-> OpenAI
     
     SQL --> SQLite
@@ -82,7 +84,7 @@ graph TB
 - **Strategy Pattern**: Different handlers for SQL/RAG/General
 - **Chain of Responsibility**: Guardrails → Orchestrator → Handlers
 - **Retry Pattern**: Automatic retry with exponential backoff for SQL generation
-- **Observer Pattern**: (Disabled) SSE for real-time progress updates. Currently uses standard Request/Response.
+- **Observer Pattern**: SSE for real-time progress updates (active, streams per agent step).
 
 ### 2.2 Security-First Design
 - **Defense in Depth**: Multiple security layers (input/output guardrails, PII scrubbing)
@@ -105,15 +107,16 @@ graph TB
 - React 18 + Vite
 - TailwindCSS for styling
 - Recharts for visualization
-- EventSource API (Inactive)
+- EventSource API (Active — receives per-step agent progress via SSE)
 
 ### 3.2 API Gateway (FastAPI)
 **Responsibility**: HTTP request handling and routing
 
 **Endpoints**:
-- `POST /chat` - Main chat endpoint
-- `GET /sse/{session_id}` - Server-Sent Events stream
+- `POST /chat` - Main chat endpoint (creates SSE session, streams agent steps)
+- `GET /sse/{session_id}` - Server-Sent Events stream (active)
 - `GET /health` - Health check
+- `POST /upload-docs` - Upload PDF document (admin only)
 
 **Features**:
 - CORS middleware for cross-origin requests
@@ -206,14 +209,23 @@ PDF Document → Split → PII Scrubber → Anonymized Text → Embeddings → F
 
 ### 3.6 LLM Layer
 
-**Primary**: Google Gemini 2.0 Flash
-- Fast inference
-- Cost-effective
-- Good reasoning capabilities
+**Provider Chain** (configurable via `LLM_PROVIDER` env var, tries each in order on failure):
 
-**Fallback**: OpenAI GPT-4o-mini (currently disabled)
-- Automatic fallback on Gemini failures
-- Rate limit handling with fail-fast
+1. **Primary: Sarvam AI** (`sarvam-m`)
+   - Indian multilingual LLM
+   - OpenAI-compatible API endpoint
+   - Used when `SARVAM_API_KEY` is set
+
+2. **Secondary: Google Gemini 2.0 Flash**
+   - Fast inference, cost-effective
+   - Good reasoning capabilities
+   - Used when `GOOGLE_API_KEY` is set
+
+3. **Tertiary Fallback: OpenAI GPT-4o-mini**
+   - Final safety net
+   - Used when `OPENAI_API_KEY` is set
+
+**Fallback Logic**: Each provider is tried in sequence. On any error, the next provider in the chain is attempted. If all fail, a `RateLimitException` is raised with a `retry_after` hint.
 
 **Usage Points**:
 - Orchestrator (intent classification)
