@@ -10,7 +10,7 @@ The application is an intelligent agent-based system that processes natural lang
 graph TB
     subgraph Client["Client Layer"]
         WebUI[React Web UI]
-        SSE[SSE Client (Disabled)]
+        SSE["SSE Client - Disabled"]
     end
     
     subgraph API["API Gateway Layer"]
@@ -20,9 +20,9 @@ graph TB
     end
     
     subgraph Security["Security Layer"]
-        InputGuard[Input Guardrails<br/>NeMo]
-        OutputGuard[Output Guardrails<br/>NeMo]
-        PIIDetect[PII Detection<br/>Presidio]
+        InputGuard["Input Guardrails - NeMo"]
+        OutputGuard["Output Guardrails - NeMo"]
+        PIIDetect["PII Detection - Presidio"]
     end
     
     subgraph Orchestration["Orchestration Layer"]
@@ -38,12 +38,12 @@ graph TB
     
     subgraph LLM["LLM Layer"]
         Gemini[Google Gemini 2.0]
-        OpenAI[OpenAI GPT-4o<br/>Fallback]
+        OpenAI["OpenAI GPT-4o - Fallback"]
     end
     
     subgraph Data["Data Layer"]
-        SQLite[(SQLite<br/>Business Data)]
-        FAISS[(FAISS<br/>Vector Store)]
+        SQLite[(SQLite - Business Data)]
+        FAISS[(FAISS - Vector Store)]
         Embeddings[Google Embeddings]
     end
     
@@ -71,7 +71,6 @@ graph TB
     General --> OutputGuard
     
     OutputGuard --> FastAPI
-    API --> F
     
     PIIDetect -.scrubs before.-> FAISS
 ```
