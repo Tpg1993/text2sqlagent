@@ -3,23 +3,26 @@
 ## 1. Complete System Architecture
 
 ```mermaid
-C4Context
-    title System Context Diagram - Text2SQL & RAG Application
+graph LR
+    User["End User"]
+    subgraph Application["Text2SQL and RAG Application"]
+        Frontend["React Frontend"]
+        Backend["FastAPI Backend"]
+    end
+    SarvamAPI["Sarvam AI API - Primary LLM"]
+    GeminiAPI["Google Gemini API - Secondary LLM"]
+    OpenAIAPI["OpenAI API - Tertiary Fallback"]
 
-    Person(user, "End User", "Asks questions about data and documents")
-    
-    System_Boundary(app, "Text2SQL & RAG Application") {
-        System(frontend, "React Frontend", "User interface with real-time updates")
-        System(backend, "FastAPI Backend", "Agent orchestration with security")
-    }
-    
-    System_Ext(gemini, "Google Gemini API", "LLM for intent classification, SQL generation, RAG")
-    System_Ext(sarvam, "Sarvam AI API", "Primary LLM")
-    
-    Rel(user, frontend, "Asks questions", "HTTPS")
-    Rel(frontend, backend, "Sends queries", "REST API + SSE")
-    Rel(backend, gemini, "LLM calls", "HTTPS")
-    Rel(backend, openai, "Fallback", "HTTPS")
+    User --> Frontend
+    Frontend --> Backend
+    Backend --> SarvamAPI
+    SarvamAPI -.fallback.-> GeminiAPI
+    GeminiAPI -.fallback.-> OpenAIAPI
+
+    style User fill:#61DAFB,color:#000
+    style Backend fill:#4A90E2,color:#fff
+    style SarvamAPI fill:#FF6B35,color:#fff
+    style GeminiAPI fill:#4285F4,color:#fff
 ```
 
 ## 2. Agent State Machine
@@ -132,7 +135,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     A[PDF Document] --> B[PyPDFLoader]
-    B --> C["Split into Chunks - 1000 chars, 200 overlap"]
+    B --> C["Split into Chunks - 1000 chars, 200 overlap"]
     C --> D{For Each Chunk}
     
     D --> E[Presidio Analyzer]
@@ -141,7 +144,7 @@ flowchart LR
     F -->|Yes| G[Presidio Anonymizer]
     F -->|No| H[Keep Original]
     
-    G --> I["Replace with Vault Tokens: EMAIL / PHONE / SSN"]
+    G --> I["Replace with Vault Tokens: EMAIL / PHONE / SSN"]
     I --> J[Create Embeddings]
     H --> J
     
@@ -197,30 +200,31 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[LLM Call Needed] --> TrySarvam[Try Sarvam AI]
-
-    TrySarvam --> CheckSarvam{Error?}
-
-    CheckSarvam -->|No Error| Success[Return Response]
-    CheckSarvam -->|Error| TryGemini[Try Google Gemini 2.0]
-    TryGemini --> CheckGemini{Error?}
-
-    CheckGemini -->|No Error| Success
-    CheckGemini -->|Rate Limit 429| RateLimit[Extract retry_after]
-    CheckGemini -->|Other Error| TryOpenAI[Try OpenAI GPT-4o]
-
-    RateLimit --> FailFast[Raise RateLimitException]
-    FailFast --> UserWait[User Sees Wait Time]
-
-    TryOpenAI --> CheckOpenAI{Error?}
-    CheckOpenAI -->|No Error| Success
-    CheckOpenAI -->|Error| Fail[Raise Exception]
-
-    Success --> End([Complete])
-    UserWait --> End
-    Fail --> End
-
-    style TrySarvam fill:#FF6B35,color:#fff
+    Start[LLM Call Needed] --> TrySarvam[Try Sarvam AI]
+
+    TrySarvam --> CheckSarvam{Error?}
+
+    CheckSarvam -->|No Error| Success[Return Response]
+    CheckSarvam -->|Error| TryGemini[Try Google Gemini 2.0]
+    TryGemini --> CheckGemini{Error?}
+
+    CheckGemini -->|No Error| Success
+    CheckGemini -->|Rate Limit 429| RateLimit[Extract retry_after]
+    CheckGemini -->|Other Error| TryOpenAI[Try OpenAI GPT-4o]
+
+    RateLimit --> FailFast[Raise RateLimitException]
+    FailFast --> UserWait[User Sees Wait Time]
+
+    TryOpenAI --> CheckOpenAI{Error?}
+    CheckOpenAI -->|No Error| Success
+    CheckOpenAI -->|Error| Fail[Raise Exception]
+
+    Success --> End([Complete])
+    UserWait --> End
+    Fail --> End
+
+    style TrySarvam fill:#FF6B35,color:#fff
+```
 
 ## 8. Database Schema ER Diagram
 
@@ -297,11 +301,11 @@ graph TB
     end
     
     subgraph CDN["CDN Layer"]
-    Vercel["Vercel - Static Hosting"]
+    Vercel["Vercel - Static Hosting"]
     end
     
     subgraph API["API Layer"]
-    CloudRun["Google Cloud Run - Docker Container"]
+    CloudRun["Google Cloud Run - Docker Container"]
         LB[Load Balancer]
     end
     
@@ -311,8 +315,8 @@ graph TB
     end
     
     subgraph Data["Data Layer"]
-    SQLiteFile["SQLite File - Persistent Volume"]
-    FAISSFile["FAISS Index - Persistent Volume"]
+    SQLiteFile["SQLite File - Persistent Volume"]
+    FAISSFile["FAISS Index - Persistent Volume"]
     end
     
     Browser --> Vercel
@@ -414,14 +418,14 @@ graph LR
     end
     
     subgraph Defense["Defense Layers"]
-        Layer1["Input Guardrail - NeMo"]
-        Layer2["Intent Classification - LLM"]
-        Layer3["PII Scrubbing - Presidio"]
-        Layer4["Output Guardrail - NeMo"]
+        Layer1["Input Guardrail - NeMo"]
+        Layer2["Intent Classification - LLM"]
+        Layer3["PII Scrubbing - Presidio"]
+        Layer4["Output Guardrail - NeMo"]
     end
     
     subgraph Safe["Safe Output"]
-        User["User Receives Safe Response"]
+        User["User Receives Safe Response"]
     end
     
     Jailbreak --> Layer1
