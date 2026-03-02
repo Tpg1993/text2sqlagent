@@ -1,4 +1,4 @@
-$pythonPath = "c:\Users\Tejas\Downloads\APPS\text2sql rag\backend\.venv\Scripts\python.exe"
+$pythonPath = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 Write-Output "Starting Backend Server with $pythonPath..."
 
 # Set PYTHONPATH to include the current directory so 'app' module is found

@@ -81,7 +81,7 @@ The 20 Q&A pairs are drawn from the `support.pdf` document (the same document in
 
 ### Prerequisites
 ```powershell
-cd "c:\Users\Tejas\Downloads\APPS\text2sql rag\backend"
+cd backend
 .\.venv\Scripts\Activate.ps1
 
 # Install RAGAS (first time only)

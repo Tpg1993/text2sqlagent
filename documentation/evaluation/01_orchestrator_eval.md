@@ -74,7 +74,7 @@ The dataset is structured to cover **five categories** of queries:
 ### Prerequisites
 ```powershell
 # Ensure you are in the backend directory with the venv activated
-cd c:\Users\Tejas\Downloads\APPS\text2sql rag\backend
+cd backend
 .\.venv\Scripts\Activate.ps1
 ```
 

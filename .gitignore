@@ -80,3 +80,6 @@ backend/data/docs/*_sanitized*.pdf
 # RAGAS cache
 .ragas/
 **/.ragas/
+
+# Evaluation reports (contain local machine paths — generated files)
+backend/evaluation/reports/

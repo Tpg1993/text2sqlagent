@@ -78,7 +78,7 @@ Prompt → general_node() → Response
 ## How to Run
 
 ```powershell
-cd "c:\Users\Tejas\Downloads\APPS\text2sql rag\backend"
+cd backend
 .\.venv\Scripts\Activate.ps1
 
 # Quick dev run — 5 cases

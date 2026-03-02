@@ -100,7 +100,7 @@ Sample data includes 3 departments, 3 employees, 3 sales records, 4 customers.
 
 ### Prerequisites
 ```powershell
-cd "c:\Users\Tejas\Downloads\APPS\text2sql rag\backend"
+cd backend
 .\.venv\Scripts\Activate.ps1
 
 # Install DeepEval (first time only)

@@ -14,7 +14,7 @@ Enhance the current Agentic RAG system with advanced security patterns inspired 
 
 ### Core Security Infrastructure
 
-#### [NEW] [security.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/security.py)
+#### [NEW] [security.py](../backend/app/utils/security.py)
 - Define `AgentIdentity` class (ID, Role, Permissions).
 - Define `SecurityPolicy` class.
 - Implement `SecurityManager` to handle authentication and authorization of agents.
@@ -22,20 +22,20 @@ Enhance the current Agentic RAG system with advanced security patterns inspired 
 
 ### Graph & State Updates
 
-#### [MODIFY] [state.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/utils/state.py)
+#### [MODIFY] [state.py](../backend/app/utils/state.py)
 - Add `agent_identity: dict` to `AgentState`.
 - Add `security_context: dict` to `AgentState` (for audit logs).
 
-#### [MODIFY] [agent_graph.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/graphs/agent_graph.py)
+#### [MODIFY] [agent_graph.py](../backend/app/graphs/agent_graph.py)
 - Initialize `SecurityManager` at graph entry.
 - Wrap nodes with `security_manager.enforce(node_func)` instead of just `trace_node`.
 
 ### Agent Updates (Least Privilege)
 
-#### [MODIFY] [generate.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/agents/generate.py)
+#### [MODIFY] [generate.py](../backend/app/agents/generate.py)
 - Check if current agent identity has `EXECUTE_SQL` permission.
 
-#### [MODIFY] [rag_retrieve.py](file:///c:/Users/Tejas/Downloads/APPS/text2sql%20rag/backend/app/agents/rag_retrieve.py)
+#### [MODIFY] [rag_retrieve.py](../backend/app/agents/rag_retrieve.py)
 - Check if current agent identity has `READ_VECTOR_DB` permission.
 
 ## Verification Plan
