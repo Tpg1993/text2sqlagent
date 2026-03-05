@@ -815,4 +815,28 @@ For highly dynamic environments, this can be taken a step further by storing pro
 
 ---
 
+### Q38. The system currently uses RBAC (Role-Based Access Control) for agents. What is ABAC, and when would you use it instead?
+
+**Answer:**
+
+**RBAC (Role-Based Access Control)** grants access based strictly on a subject's assigned role. In our system, the `generate` agent has the `sql_writer` role, which gives it the `GENERATE_SQL` permission. The rule is static: *If you have the role, you have the permission.*
+
+**ABAC (Attribute-Based Access Control)** is a much more granular, dynamic model. It grants access based on a combination of **attributes** evaluated at runtime. These attributes usually fall into three categories:
+1. **User/Subject Attributes**: Role, clearance level, department, time of login.
+2. **Resource Attributes**: Data classification (public vs. confidential), record owner, creation date.
+3. **Environment Attributes**: IP address, time of day, current threat level.
+
+**Example Comparison:**
+- **RBAC:** "All Managers can view the Payroll table."
+- **ABAC:** "A Manager can view the Payroll table **ONLY IF** the employee record belongs to their own department, **AND** they are accessing it from a corporate IP address, **AND** it is between 9 AM - 5 PM."
+
+**When to use ABAC in an Agentic System:**
+We would upgrade from RBAC to ABAC when dealing with multi-tenant data or row-level security. For example:
+- If Agent A is executing a query on behalf of "Customer X", an ABAC policy would inject an attribute check ensuring the SQL query only returns rows where `tenant_id = 'Customer X'`.
+- If the agent detects the environment attribute `threat_level = HIGH` (e.g., during an active DDoS attack), an ABAC system could temporarily revoke SQL execution permissions for all non-admin agents dynamically without changing their underlying roles.
+
+ABAC is significantly more complex to implement and compute than RBAC, which is why RBAC is the industry standard starting point, with ABAC adopted only when the business logic requires dynamic, context-aware authorization rules.
+
+---
+
 *End of Interview Q&A — Good luck with your interview!* 🎯
