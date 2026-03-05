@@ -839,4 +839,22 @@ ABAC is significantly more complex to implement and compute than RBAC, which is 
 
 ---
 
+### Q39. What are the steps to implement ABAC in this system, and how "engineering heavy" is it?
+
+**Answer:**
+
+Implementing ABAC is considered **High Engineering Effort** (engineering heavy) compared to RBAC. It transforms authorization from a simple dictionary lookup into a dynamic, context-aware calculation that often requires parsing queries and hitting external policy engines.
+
+To implement ABAC in our Agentic system, we would need the following 5 steps:
+
+1. **Attribute Definition & Tagging**: Define and enforce metadata across the stack. Every user needs attributes logged in their JWT (e.g., `department_id`, `clearance_level`). Database tables need row-level attributes (e.g., `tenant_id`), and FAISS documents need metadata tags.
+2. **Policy Engine Integration**: A simple Python dictionary is insufficient for ABAC. We would need to integrate a dedicated engine like **OPA (Open Policy Agent)** or **AWS Cedar** to evaluate complex boolean boolean logic rules at runtime.
+3. **Context Enrichment Middleware**: The FastAPI entry point must be updated to resolve all attributes. It extracts user claims from the JWT, grabs the client IP, and injects this entire "Environment Context" into the LangGraph `AgentState`.
+4. **Agent Prompt Modification**: The `generate_node` (LLM) must be instructed about ABAC constraints so it generates compliant queries. For example, the system prompt must silently append `WHERE tenant_id = '{user.tenant_id}'` to all generated SQL.
+5. **Runtime Enforcement (The hardest part)**: The `execute_node` or `validate_node` must verify that the LLM actually obeyed the rules. It would need to parse the generated SQL AST to ensure the `WHERE` clause filters attributes correctly before executing the query — otherwise, a hallucinating LLM could bypass the ABAC policies entirely.
+
+**Conclusion:** ABAC introduces significant architectural complexity. Because it requires SQL AST parsing and runtime evaluation against a policy engine like OPA, it easily adds weeks of specialized engineering effort, which is why it is usually reserved for strict enterprise SaaS or healthcare/finance compliance scenarios.
+
+---
+
 *End of Interview Q&A — Good luck with your interview!* 🎯
