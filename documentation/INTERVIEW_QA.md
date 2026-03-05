@@ -799,4 +799,20 @@ A close second was **the SSE + async state management** — ensuring that agent 
 
 ---
 
+### Q37. In a multi-agent system, how do you manage prompt updates so you don't have to redeploy the entire codebase every time a prompt changes?
+
+**Answer:**
+
+Hardcoding prompts as Python string constants inside agent files (e.g., `ORCHESTRATOR_PROMPT = "..."`) is an anti-pattern for production because any prompt tweak requires a code review and a full system redeploy.
+
+To solve this, we implement a **Prompt Library Architecture**:
+
+1. **Externalization**: Prompts are moved out of `.py` files and into version-controlled YAML files (e.g., `prompts/orchestrator.yaml`, `prompts/rag_generate.yaml`). The YAML contains the prompt text and metadata (version, author).
+2. **Prompt Registry**: A singleton `PromptRegistry` class loads these YAML files at application startup. Agents fetch their templates via `PromptRegistry.get("orchestrator")`. The agent code becomes completely prompt-agnostic.
+3. **Selective Deployment (CI/CD)**: In our GitHub Actions pipeline, we detect which specific YAML file changed using `git diff`. If `orchestrator.yaml` changes, the pipeline **only** rebuilds and restarts the Orchestrator container, leaving the RAG and SQL agents untouched.
+
+For highly dynamic environments, this can be taken a step further by storing prompts in Redis or LangSmith Hub, allowing for **zero-downtime hot-reloads** and A/B testing of prompts without touching the CI/CD pipeline at all.
+
+---
+
 *End of Interview Q&A — Good luck with your interview!* 🎯
