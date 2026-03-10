@@ -83,3 +83,6 @@ backend/data/docs/*_sanitized*.pdf
 
 # Evaluation reports (contain local machine paths — generated files)
 backend/evaluation/reports/
+
+# Vite config temporary files
+frontend/vite.config.*.timestamp*
