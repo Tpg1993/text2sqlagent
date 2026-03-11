@@ -70,6 +70,13 @@ app.add_middleware(
 # setup_telemetry(app)
 print("[DEBUG] App initialization complete (pre-startup)")
 
+from app.api.connections import router as connections_router
+from app.api.charts import router as charts_router
+from app.api.admin import router as admin_router
+app.include_router(connections_router, prefix=settings.API_V1_STR)
+app.include_router(charts_router, prefix=settings.API_V1_STR)
+app.include_router(admin_router, prefix=settings.API_V1_STR)
+
 
 from pydantic import BaseModel, Field
 
@@ -82,6 +89,12 @@ class ChatResponse(BaseModel):
     data: Optional[List[Dict[str, Any]]] = None
     chart: Optional[Dict[str, Any]] = None
     approval_status: Optional[str] = None
+    failed_sql: Optional[str] = None
+    schema_context: Optional[str] = None
+
+class SqlCorrectionRequest(BaseModel):
+    sql: str
+    session_id: str
 
 @app.post(settings.API_V1_STR + "/auth/login", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -208,6 +221,10 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
         # De-anonymize the final response and data before sending to user
         from app.db.vault import deanonymize_text
         
+        pii_scrubbed = False
+        if "[PII_" in response_text:
+            pii_scrubbed = True
+
         response_text = deanonymize_text(response_text)
         
         # We also need to deanonymize the SQL result data if it's there
@@ -217,15 +234,38 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
             for row in final_data:
                 for k, v in row.items():
                     if isinstance(v, str):
+                        if "[PII_" in v:
+                            pii_scrubbed = True
                         row[k] = deanonymize_text(v)
         
+        # Save audit log
+        from app.db.session import SessionLocal
+        from app.db.models import AuditLog
+        db = SessionLocal()
+        try:
+            audit = AuditLog(
+                username=current_user.username,
+                query=body.message,
+                intent=result.get("intent", "unknown"),
+                blocked=(result.get("intent") == "blocked"),
+                pii_scrubbed=pii_scrubbed
+            )
+            db.add(audit)
+            db.commit()
+        except BaseException as e:
+            logger.error(f"Failed to save audit log: {e}")
+        finally:
+            db.close()
+
         # Close SSE session for normal requests
         sse_manager.close_session(session_id)
         
         return ChatResponse(
             response=response_text,
             data=final_data,
-            chart=result.get("visualization_spec")
+            chart=result.get("visualization_spec"),
+            failed_sql=result.get("failed_sql"),
+            schema_context=result.get("schema_context")
         )
     except Exception as e:
         import traceback
@@ -258,6 +298,29 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
         
         # Re-raise to let FastAPI handle it (or return 500)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post(settings.API_V1_STR + "/chat/correct-sql")
+async def execute_corrected_sql(
+    request: SqlCorrectionRequest, 
+    token: TokenData = Depends(get_current_user_token)
+):
+    """Executes a manually corrected SQL statement directly and returns results"""
+    from sqlalchemy import text
+    from app.db.session import engine
+    
+    try:
+        clean_sql = request.sql.replace('```sql', '').replace('```', '').strip()
+        
+        with engine.connect() as conn:
+            result = conn.execute(text(clean_sql))
+            rows = [dict(row._mapping) for row in result]
+            
+        return ChatResponse(
+            response="Successfully executed corrected SQL.",
+            data=rows
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")
 
 from fastapi import UploadFile, File, BackgroundTasks
 import shutil

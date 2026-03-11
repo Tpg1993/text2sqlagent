@@ -22,6 +22,8 @@ class AgentState(TypedDict):
     error: Optional[str]
     step_count: int = 0
     visualization_spec: Optional[Dict[str, Any]]
+    schema_context: Optional[str]
+    failed_sql: Optional[str]
     
     # RAG Flow
     documents: Optional[List[Any]]

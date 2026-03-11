@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock } from 'lucide-react';
+import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock, BarChart3, ShieldCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DOMPurify from 'dompurify';
 import ChartRenderer from './ChartRenderer';
-import { chat, pollApprovalStatus } from '../api/client';
+import { chat, pollApprovalStatus, executeCorrectedSql } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function ChatInterface() {
     const [messages, setMessages] = useState([
@@ -14,6 +14,10 @@ export default function ChatInterface() {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [agentProgress, setAgentProgress] = useState('');
+    
+    // For SQL Self-Correction
+    const [editingSqlIndexes, setEditingSqlIndexes] = useState({});
+    
     // Track active approval polls so we can cancel them on unmount
     const activePollsRef = useRef({});
     const scrollRef = useRef(null);
@@ -197,6 +201,47 @@ export default function ChatInterface() {
         }
     };
 
+    const handleSqlCorrectionEdit = (index, newSql) => {
+        setEditingSqlIndexes(prev => ({
+            ...prev,
+            [index]: newSql
+        }));
+    };
+
+    const handleSqlCorrectionSubmit = async (index, msg) => {
+        const sqlToExecute = editingSqlIndexes[index] !== undefined ? editingSqlIndexes[index] : msg.failed_sql;
+        if (!sqlToExecute?.trim()) return;
+
+        setLoading(true);
+        setAgentProgress('Executing corrected SQL...');
+
+        try {
+            const res = await executeCorrectedSql(sqlToExecute);
+            
+            // Push the result as a new assistant message
+            const assistantMsg = {
+                role: 'assistant',
+                content: res.response || "Corrected SQL executed.",
+                data: res.data,
+                chart: res.chart
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+            
+            // clear the edit state so we don't hold stale data
+            setEditingSqlIndexes(prev => {
+                const next = {...prev};
+                delete next[index];
+                return next;
+            });
+        } catch (err) {
+            let errorMsg = "Correction failed: " + err.message;
+            setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+        } finally {
+            setLoading(false);
+            setAgentProgress('');
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen bg-slate-950 text-slate-200">
             {/* Header */}
@@ -212,13 +257,28 @@ export default function ChatInterface() {
                         <p className="text-xs text-slate-500">Logged in as {user?.username}</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                    title="Logout"
-                >
-                    <LogOut className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-4">
+                    {user?.role === 'admin' && (
+                        <>
+                            <Link to="/admin" className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+                                <ShieldCheck size={16} /> Admin
+                            </Link>
+                            <Link to="/connections" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1 border-l border-slate-700 pl-4 ml-2">
+                                <Database size={16} /> Connections
+                            </Link>
+                        </>
+                    )}
+                    <Link to="/dashboard" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1 border-l border-slate-700 pl-4 ml-2">
+                        <BarChart3 size={16} /> Dashboard
+                    </Link>
+                    <button
+                        onClick={handleLogout}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ml-2 border-l border-slate-700 pl-4"
+                        title="Logout"
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
+                </div>
             </header>
 
             {/* Messages */}
@@ -282,6 +342,44 @@ export default function ChatInterface() {
                                 {/* Chart */}
                                 {msg.chart && (
                                     <ChartRenderer spec={msg.chart} />
+                                )}
+
+                                {/* Self-Correction UI */}
+                                {msg.failed_sql && (
+                                    <div className="mt-4 border border-rose-800 rounded-lg overflow-hidden bg-slate-900 w-full">
+                                        <div className="bg-rose-950/50 px-4 py-2 text-xs font-semibold text-rose-300 border-b border-rose-800 flex justify-between items-center">
+                                            <span>SQL Self-Correction</span>
+                                            <span className="text-slate-400 font-normal">Edit & Retry</span>
+                                        </div>
+                                        <div className="p-4 grid gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Failed Query:</label>
+                                                <textarea 
+                                                    className="w-full bg-slate-950 text-emerald-400 font-mono text-sm p-3 rounded border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                    rows={4}
+                                                    value={editingSqlIndexes[idx] !== undefined ? editingSqlIndexes[idx] : msg.failed_sql}
+                                                    onChange={(e) => handleSqlCorrectionEdit(idx, e.target.value)}
+                                                />
+                                            </div>
+                                            {msg.schema_context && (
+                                                <div>
+                                                    <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Available Schema:</label>
+                                                    <pre className="w-full bg-slate-950 text-slate-300 font-mono text-xs p-3 rounded border border-slate-700 overflow-x-auto max-h-32">
+                                                        {msg.schema_context}
+                                                    </pre>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end">
+                                                <button 
+                                                    onClick={() => handleSqlCorrectionSubmit(idx, msg)}
+                                                    disabled={loading}
+                                                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 flexItems-center gap-2"
+                                                >
+                                                    <Send size={14} className="inline mr-1" /> Execute Fix
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>

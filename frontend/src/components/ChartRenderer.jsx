@@ -1,12 +1,45 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-
+import { Save, Check } from 'lucide-react';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function ChartRenderer({ spec }) {
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
     if (!spec || !spec.type || !spec.data) return null;
 
     const { type, data, xKey, yKey, title } = spec;
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/v1/charts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({
+                    title: title || 'Untitled Chart',
+                    spec: spec 
+                })
+            });
+            
+            if (!res.ok) {
+                throw new Error("Failed to save chart");
+            }
+            
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (error) {
+            console.error("Failed to save chart", error);
+            alert("Failed to save chart.");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const renderChart = () => {
         switch (type) {
@@ -58,9 +91,19 @@ export default function ChartRenderer({ spec }) {
     };
 
     return (
-        <div className="w-full h-64 p-4 bg-slate-800 rounded-lg shadow-lg my-4">
-            {title && <h3 className="text-center mb-2 font-semibold text-slate-300">{title}</h3>}
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full h-64 p-4 bg-slate-800 rounded-lg shadow-lg my-4 relative group">
+            <div className="flex justify-between items-center mb-2">
+                {title ? <h3 className="font-semibold text-slate-300">{title}</h3> : <div></div>}
+                <button 
+                  onClick={handleSave} 
+                  disabled={saving || saved}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-1 px-2 rounded border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {saved ? <Check size={14} className="text-green-400" /> : <Save size={14} />}
+                    {saved ? 'Saved!' : 'Save to Dashboard'}
+                </button>
+            </div>
+            <ResponsiveContainer width="100%" height="90%">
                 {renderChart()}
             </ResponsiveContainer>
         </div>

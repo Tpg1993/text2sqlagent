@@ -98,3 +98,42 @@ export async function pollApprovalStatus(requestId) {
 
     return await response.json();
 }
+
+/**
+ * Execute a manually corrected SQL query.
+ * Returns { response, data?, chart? } 
+ */
+export async function executeCorrectedSql(sql) {
+    const token = localStorage.getItem('token');
+    // Generate a temporary session just for this execution
+    const sessionId = crypto.randomUUID();
+    
+    const response = await fetch('/api/v1/chat/correct-sql', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ sql, session_id: sessionId })
+    });
+
+    if (!response.ok) {
+        let errorData;
+        try {
+            errorData = await response.json();
+        } catch (e) {
+            errorData = { detail: await response.text() };
+        }
+        
+        const backendMessage =
+            errorData?.message ||
+            errorData?.detail ||
+            errorData?.error;
+
+        const error = new Error(backendMessage || `Request failed with status ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
+
+    return await response.json();
+}
