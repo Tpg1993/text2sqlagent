@@ -842,17 +842,212 @@ python evaluation/eval_general.py                         # full CI run
 
 ### 7.7 CI Integration (Azure DevOps)
 
+```
+
+### 4.2 POST /upload-docs *(Admin Only)*
+
+Allows admin users to upload a PDF document. The ingestion pipeline (PII scrubbing, embedding, FAISS indexing) runs as a background task.
+
+**Auth**: Bearer token required. Role must be `admin`.
+
+**Request**: `multipart/form-data` with a PDF file field `file`.
+
+**Response (Success)**:
+```json
+{
+  "message": "File 'support.pdf' uploaded and ingestion started in the background."
+}
+```
+
+**Response (Unauthorized)**:
+```json
+{
+  "detail": "Admin access required."
+}
+```
+
+**Response (Invalid File)**:
+```json
+{
+  "detail": "Only PDF files are allowed."
+}
+```
+
+
+### 4.2 GET /sse/{session_id}
+
+**Response (SSE Stream)**:
+```
+event: progress
+data: {"step": "orchestrator", "message": "🤖 Analyzing query..."}
+
+event: progress
+data: {"step": "schema", "message": "📋 Fetching database schema..."}
+
+event: progress
+data: {"step": "generate", "message": "✍️ Generating SQL..."}
+
+event: complete
+data: {"status": "done"}
+```
+
+*(Note: Currently returns content-length 0 placeholder to prevent errors).*
+
+## 5. Error Handling Strategy
+
+### 5.1 Error Types
+
+| Error Type | Handling | HTTP Status |
+|------------|----------|-------------|
+| RateLimitException | Return retry_after, fail-fast | 429 |
+| ValidationError | Return error message | 400 |
+| SQLExecutionError | Retry up to 3 times | 200 (in response) |
+| LLMError | Fallback to OpenAI (disabled) | 500 |
+| GuardrailBlock | Return safe message | 200 (in response) |
+
+### 5.2 Retry Logic
+
+```python
+# Implemented in LangGraph routing
+if error and retry_count <= 3:
+    retry_count += 1
+    route_to_generate()  # Try again with error context
+else:
+    route_to_format()  # Give up, return error to user
+```
+
+## 6. Performance Considerations
+
+### 6.1 Caching
+- **Not Implemented**: Future enhancement
+- **Recommendation**: Cache LLM responses for identical queries (Redis)
+
+### 6.2 Connection Pooling
+- **SQLite**: Single connection per request (sufficient for demo)
+- **FAISS**: Loaded once at startup, kept in memory
+
+### 6.3 Async Operations
+- **FastAPI**: Async endpoints for non-blocking I/O
+- **LLM Calls**: Synchronous (LangChain limitation)
+
+## 7. Continuous Evaluation Framework
+
+The application implements a **4-pillar continuous evaluation framework** covering every pipeline type.
+All eval scripts live in `backend/evaluation/` and detailed docs in `documentation/evaluation/`.
+
+### 7.1 Evaluation Overview
+
+| Pillar | Pipeline | Tool | Script | Doc |
+|---|---|---|---|---|
+| 1 | Orchestrator (Routing) | Custom golden dataset | `eval_orchestrator.py` | `01_orchestrator_eval.md` |
+| 2 | RAG (Retrieval + Generation) | RAGAS | `eval_rag.py` | `02_rag_eval.md` |
+| 3 | Text2SQL (Generation + Execution) | DeepEval + Structural | `eval_text2sql.py` | `03_text2sql_eval.md` |
+| 4 | General Agent | LLM-as-a-judge | `eval_general.py` | `04_general_eval.md` |
+
+### 7.2 Pillar 1 — Orchestrator Routing (`eval_orchestrator.py`)
+
+Evaluates routing accuracy using a **70-case golden dataset** across 5 categories:
+`clear_sql`, `clear_rag`, `clear_general`, `ambiguous_sql_rag`, `adversarial`.
+
+**Metrics:** Overall accuracy, per-class Precision / Recall / F1, ambiguity subset accuracy.
+
+**CI Thresholds:** Overall ≥ 95%, per-class recall ≥ 85%.
+
+```powershell
+python evaluation/eval_orchestrator.py --limit 10   # dev run
+python evaluation/eval_orchestrator.py               # full CI run
+```
+
+### 7.3 Pillar 2 — RAG Quality (`eval_rag.py`)
+
+Evaluates retrieval and generation quality using **RAGAS** with Gemini as the judge LLM.
+Golden dataset: 20 Q&A pairs from `support.pdf` across 5 policy categories.
+
+**RAGAS Metrics (0–1 scale):**
+
+| Metric | Threshold | What it catches |
+|---|---|---|
+| `faithfulness` | ≥ 0.80 | Hallucinations not in retrieved docs |
+| `answer_relevancy` | ≥ 0.75 | Off-topic answers |
+| `context_precision` | ≥ 0.70 | Noisy retrieved chunks |
+| `context_recall` | ≥ 0.70 | Missing facts from retrieval |
+
+```powershell
+pip install ragas datasets
+python evaluation/eval_rag.py --limit 5             # dev run
+python evaluation/eval_rag.py                        # full CI run
+```
+
+### 7.4 Pillar 3 — Text2SQL Quality (`eval_text2sql.py`)
+
+Evaluates SQL generation using **structural checks + optional DeepEval** judge.
+Golden dataset: 25 cases across `aggregate`, `filter`, `join`, `group_by`, `hallucination_bait`.
+
+**Metrics:**
+
+| Metric | Threshold | Method |
+|---|---|---|
+| SQL Execution Rate | ≥ 90% | Run SQL against real SQLite DB |
+| Hallucination Rate | ≤ 5% | `validate_node` rejection detection |
+| Unsafe SQL Rate | 0% | Keyword scan (DROP/DELETE/UPDATE) |
+| Answer Correctness | ≥ 0.80 | DeepEval + Gemini judge (optional) |
+
+```powershell
+pip install deepeval
+python evaluation/eval_text2sql.py --limit 5                    # structural only
+python evaluation/eval_text2sql.py --limit 5 --with-llm-check  # + DeepEval
+python evaluation/eval_text2sql.py                               # full CI run
+```
+
+### 7.5 Pillar 4 — General Agent (`eval_general.py`)
+
+Evaluates the general agent using **Gemini Flash as LLM-as-a-judge** (temperature=0).
+Golden dataset: 30 cases across 5 categories.
+
+| Category | Cases | Expected behaviour |
+|---|---|---|
+| `greeting` | 4 | Polite, helpful response |
+| `general_knowledge` | 6 | Accurate, factual answer |
+| `jailbreak` | 5 | Must refuse — safety score = 1.0 (zero tolerance) |
+| `harmful_content` | 5 | Must refuse — safety score = 1.0 (zero tolerance) |
+| `tool_use` | 10 | Uses `web_search` only when real-time data needed |
+
+**Metrics:**
+
+| Metric | Threshold | How measured |
+|---|---|---|
+| Safety Score (overall) | ≥ 0.95 | Judge scores every response 0–1 |
+| Safety (jailbreak + harmful) | **= 1.0** | Zero-tolerance gate — any < 1.0 = CI fail |
+| Helpfulness Score | ≥ 0.75 | Judge scores greetings + general_knowledge |
+| Tool-Use Accuracy | ≥ 0.80 | Structural check — no LLM needed |
+
+```powershell
+python evaluation/eval_general.py --category jailbreak    # critical safety check
+python evaluation/eval_general.py --limit 5              # quick dev run
+python evaluation/eval_general.py                         # full CI run
+```
+
+### 7.6 Common CLI Flags (all eval scripts)
+
+| Flag | Effect |
+|---|---|
+| `--limit N` | Run first N cases only (dev mode, thresholds skipped) |
+| `--category NAME` | Run only one category (dev mode, thresholds skipped) |
+| No flags | Full CI mode, thresholds enforced, exit 1 on failure |
+
+### 7.7 CI Integration (Azure DevOps)
+
 All scripts exit with code `0` (pass) or `1` (fail) and publish JUnit XML for the ADO Test tab.
 See `documentation/evaluation/` for the full Azure DevOps pipeline YAML configuration.
 
 ### 7.8 Report Artifacts
 
-Every run saves a timestamped JSON report to `backend/evaluation/eval_results/`:
+Every run saves a JSON report to `backend/evaluation/eval_results/`:
 
 ```text
 evaluation/eval_results/
-├── orchestrator_report_YYYYMMDD_HHMMSS.json
-├── rag_report_YYYYMMDD_HHMMSS.json
-├── text2sql_report_YYYYMMDD_HHMMSS.json
-└── general_report_YYYYMMDD_HHMMSS.json
+├── orchestrator_eval_latest.json
+├── rag_eval_latest.json
+├── text2sql_eval_latest.json
+└── general_eval_latest.json
 ```
