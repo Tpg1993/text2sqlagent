@@ -80,7 +80,7 @@ logger = logging.getLogger("eval.orchestrator")
 ACCURACY_THRESHOLD: float = 0.95          # 95% overall accuracy required
 PER_CLASS_RECALL_THRESHOLD: float = 0.85  # 85% recall per intent class required
 DATASET_PATH = SCRIPT_DIR / "datasets" / "routing_golden.csv"
-REPORTS_DIR = SCRIPT_DIR / "reports"
+REPORTS_DIR = SCRIPT_DIR / "eval_results"
 VALID_INTENTS = {"sql", "rag", "general"}
 
 # ---------------------------------------------------------------------------
@@ -343,12 +343,12 @@ def save_report(metrics: dict, results: list[dict], failures: list[str]) -> Path
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = REPORTS_DIR / f"orchestrator_report_{timestamp}.json"
+    report_path = REPORTS_DIR / "orchestrator_eval_latest.json"
 
     report = {
         "evaluation": "orchestrator_routing",
         "timestamp": datetime.now().isoformat(),
-        "dataset": str(DATASET_PATH),
+        "dataset": "backend/evaluation/datasets/routing_golden.csv",
         "thresholds": {
             "accuracy": ACCURACY_THRESHOLD,
             "per_class_recall": PER_CLASS_RECALL_THRESHOLD,

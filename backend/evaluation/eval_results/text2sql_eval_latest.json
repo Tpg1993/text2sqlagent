@@ -1,0 +1,43 @@
+{
+  "evaluation": "text2sql_deepeval",
+  "timestamp": "2026-03-11T13:44:39.266109",
+  "dataset": "backend/evaluation/datasets/sql_golden.csv",
+  "thresholds": {
+    "sql_execution_rate": 0.9,
+    "hallucination_rate": 0.05,
+    "unsafe_sql_rate": 0.0,
+    "answer_correctness": 0.8
+  },
+  "metrics": {
+    "total": 1,
+    "valid_cases": 1,
+    "invalid_cases": 0,
+    "sql_execution_rate": 0.0,
+    "hallucination_rate": 0.0,
+    "bait_catch_rate": 1.0,
+    "unsafe_sql_rate": 0.0,
+    "empty_result_rate": 0.0,
+    "avg_answer_correctness": null
+  },
+  "passed_thresholds": true,
+  "threshold_failures": [],
+  "failed_cases": [
+    {
+      "question": "What is the total salary of all employees?",
+      "expected_tables": [
+        "employees"
+      ],
+      "expected_valid": true,
+      "category": "aggregate",
+      "notes": "SUM on single table",
+      "sql_query": "<think>\nSELECT SUM(salary) AS total_salary FROM employees;",
+      "sql_result": null,
+      "sql_valid": false,
+      "error": "(sqlite3.OperationalError) near \"<\": syntax error\n[SQL: <think>\nSELECT SUM(salary) AS total_salary FROM employees;]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "hallucinated": false,
+      "unsafe": false,
+      "pipeline_error": null,
+      "deepeval_score": null
+    }
+  ]
+}

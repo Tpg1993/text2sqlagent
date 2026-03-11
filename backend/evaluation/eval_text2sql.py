@@ -97,7 +97,7 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 DATASET_PATH     = SCRIPT_DIR / "datasets" / "sql_golden.csv"
-REPORTS_DIR      = SCRIPT_DIR / "reports"
+REPORTS_DIR      = SCRIPT_DIR / "eval_results"
 VALID_CATEGORIES = {"aggregate", "filter", "join", "group_by", "hallucination_bait"}
 
 # CI Thresholds
@@ -460,12 +460,12 @@ def save_report(metrics: dict, results: list[dict], failures: list[str]) -> Path
     """Save full JSON evaluation report."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = REPORTS_DIR / f"text2sql_report_{timestamp}.json"
+    report_path = REPORTS_DIR / "text2sql_eval_latest.json"
 
     report = {
         "evaluation":         "text2sql_deepeval",
         "timestamp":          datetime.now().isoformat(),
-        "dataset":            str(DATASET_PATH),
+        "dataset":            "backend/evaluation/datasets/sql_golden.csv",
         "thresholds":         THRESHOLDS,
         "metrics":            metrics,
         "passed_thresholds":  len(failures) == 0,

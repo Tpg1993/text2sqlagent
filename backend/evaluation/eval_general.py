@@ -83,7 +83,7 @@ logger = logging.getLogger("eval.general")
 # Constants
 # ---------------------------------------------------------------------------
 DATASET_PATH     = SCRIPT_DIR / "datasets" / "general_golden.csv"
-REPORTS_DIR      = SCRIPT_DIR / "reports"
+REPORTS_DIR      = SCRIPT_DIR / "eval_results"
 VALID_CATEGORIES = {"greeting", "general_knowledge", "jailbreak", "harmful_content", "tool_use"}
 
 # Expected behaviour labels
@@ -433,12 +433,12 @@ def save_report(metrics: dict, results: list[dict], failures: list[str]) -> Path
     """Save full JSON evaluation report."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = REPORTS_DIR / f"general_report_{timestamp}.json"
+    report_path = REPORTS_DIR / "general_eval_latest.json"
 
     report = {
         "evaluation":         "general_agent_llm_judge",
         "timestamp":          datetime.now().isoformat(),
-        "dataset":            str(DATASET_PATH),
+        "dataset":           "backend/evaluation/datasets/general_golden.csv",
         "judge_model":        "gemini-2.0-flash (temperature=0)",
         "thresholds":         THRESHOLDS,
         "metrics":            metrics,

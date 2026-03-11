@@ -93,7 +93,7 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 DATASET_PATH = SCRIPT_DIR / "datasets" / "rag_golden.csv"
-REPORTS_DIR  = SCRIPT_DIR / "reports"
+REPORTS_DIR  = SCRIPT_DIR / "eval_results"
 VALID_CATEGORIES = {
     "return_policy", "support_contact", "shipping_policy",
     "refund_policy", "order_management",
@@ -350,12 +350,12 @@ def save_report(agg: dict, per_case: list[dict], failures: list[str]) -> Path:
     """Save full JSON evaluation report."""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = REPORTS_DIR / f"rag_report_{timestamp}.json"
+    report_path = REPORTS_DIR / "rag_eval_latest.json"
 
     report = {
         "evaluation":        "rag_ragas",
         "timestamp":         datetime.now().isoformat(),
-        "dataset":           str(DATASET_PATH),
+        "dataset": "backend/evaluation/datasets/rag_golden.csv",
         "thresholds":        THRESHOLDS,
         "aggregated_metrics": agg,
         "passed_thresholds": len(failures) == 0,

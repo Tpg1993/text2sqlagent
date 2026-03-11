@@ -72,7 +72,7 @@ The 20 Q&A pairs are drawn from the `support.pdf` document (the same document in
 - No API keys hardcoded. All secrets loaded from `.env`.
 - The eval script calls `get_retriever()` and `rag_gen_node()` directly — no HTTP requests to the running server.
 - RAGAS uses your `GOOGLE_API_KEY` for the judge LLM (Gemini). This is the same key already in `.env`.
-- Reports written locally to `evaluation/reports/` only.
+- Reports written locally to `evaluation/eval_results/` only.
 - Dataset must not contain any real user data or production document contents.
 
 ---
@@ -131,7 +131,7 @@ pytest evaluation/eval_rag.py -v
 
   Result: ✅ EVAL PASSED (all thresholds met)
 
-Full JSON report saved to: evaluation/reports/rag_report_20260227_181500.json
+Full JSON report saved to: evaluation/eval_results/rag_eval_latest.json
 ```
 
 ---

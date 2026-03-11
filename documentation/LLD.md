@@ -847,9 +847,10 @@ See `documentation/evaluation/` for the full Azure DevOps pipeline YAML configur
 
 ### 7.8 Report Artifacts
 
-Every run saves a timestamped JSON report to `backend/evaluation/reports/`:
-```
-evaluation/reports/
+Every run saves a timestamped JSON report to `backend/evaluation/eval_results/`:
+
+```text
+evaluation/eval_results/
 ├── orchestrator_report_YYYYMMDD_HHMMSS.json
 ├── rag_report_YYYYMMDD_HHMMSS.json
 ├── text2sql_report_YYYYMMDD_HHMMSS.json

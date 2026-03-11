@@ -117,7 +117,7 @@ Accuracy: 80.00% (8/10 correct)
     Got      : rag
     Category : adversarial
 
-Full JSON report saved to: evaluation/reports/orchestrator_report_20260227.json
+Full JSON report saved to: evaluation/eval_results/orchestrator_eval_latest.json
 ```
 
 ---
