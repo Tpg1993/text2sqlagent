@@ -23,14 +23,25 @@ class GuardrailManager:
         if config_path is None:
             config_path = os.path.join(settings.BASE_DIR, "config", "rails")
         
+        self.rails = None  # Lazy initialized on first use
         try:
             self.config = RailsConfig.from_path(config_path)
-            self.rails = LLMRails(self.config)
-            print(f"✅ Guardrails initialized from {config_path}")
+            print(f"✅ Guardrails config loaded from {config_path}")
         except Exception as e:
-            print(f"⚠️ Failed to initialize guardrails: {e}")
-            self.rails = None
-    
+            print(f"⚠️ Failed to load guardrails config: {e}")
+            self.config = None
+
+    def _get_rails(self):
+        """Lazily initialize LLMRails on first use to avoid blocking startup."""
+        if self.rails is None and self.config is not None:
+            try:
+                self.rails = LLMRails(self.config)
+                print("✅ Guardrails LLMRails initialized")
+            except Exception as e:
+                print(f"⚠️ Failed to initialize LLMRails: {e}")
+                self.rails = None
+        return self.rails
+
     def validate_input(self, user_input: str) -> Tuple[bool, Optional[str]]:
         """
         Validate user input against guardrails.
@@ -43,13 +54,13 @@ class GuardrailManager:
             - is_valid: True if input passes guardrails, False otherwise
             - error_message: Explanation if blocked, None if allowed
         """
-        if not self.rails:
+        if not self._get_rails():
             # Fail-open if guardrails not initialized
             return True, None
         
         try:
             # Check for jailbreak attempts
-            response = self.rails.generate(
+            response = self._get_rails().generate(
                 messages=[{"role": "user", "content": user_input}]
             )
             
@@ -76,13 +87,13 @@ class GuardrailManager:
             - is_valid: True if output passes guardrails, False otherwise
             - replacement_message: Safe message to return if blocked, None if allowed
         """
-        if not self.rails:
+        if not self._get_rails():
             # Fail-open if guardrails not initialized
             return True, None
         
         try:
             # Use NeMo Guardrails to validate output
-            response = self.rails.generate(
+            response = self._get_rails().generate(
                 messages=[{"role": "bot", "content": bot_response}]
             )
             

@@ -71,7 +71,7 @@ def ingest_pdf_file(file_path: str = None):
     print(f"✅ PII scrubbed from {pii_count}/{len(splits)} document chunks")
     
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001", 
+        model="models/gemini-embedding-2-preview", 
         google_api_key=settings.GOOGLE_API_KEY
     )
     

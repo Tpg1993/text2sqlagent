@@ -4,7 +4,7 @@ from app.config import settings
 
 def get_retriever():
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
+        model="models/gemini-embedding-2-preview",
         google_api_key=settings.GOOGLE_API_KEY
     )
     try:
