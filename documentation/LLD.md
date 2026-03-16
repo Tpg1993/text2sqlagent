@@ -1051,3 +1051,73 @@ evaluation/eval_results/
 ├── text2sql_eval_latest.json
 └── general_eval_latest.json
 ```
+
+---
+
+## 8. New Features & Fixes (v9 → v10)
+
+### 8.1 SQL Self-Correction UI
+
+**Problem:** When SQL generation failed after 3 retries, the user received only an error message with no way to correct it.
+
+**Solution:** The `format_node` (`app/agents/format.py`) now returns `failed_sql` and `schema_context` fields in the API response. The frontend `ChatInterface.jsx` maps these to an editable SQL text box rendered below the error message. The user can edit the SQL and click **Execute Fix**, which calls `POST /api/v1/chat/correct-sql`.
+
+| Component | Change |
+|---|---|
+| `app/agents/format.py` | Returns `failed_sql` + `schema_context` when `retry_count >= 3` |
+| `app/graphs/agent_graph.py` | `route_retry` routes to `format` node at `>= 3` (was `> 3`) |
+| `app/main.py` | `/chat/correct-sql` strips `<think>` tags, executes SQL, returns result + chart |
+| `frontend/ChatInterface.jsx` | Maps `failed_sql` + `schema_context` from API response into message state |
+
+### 8.2 Chart Generation — Deterministic Fallback
+
+**Problem:** Sarvam AI is the **primary LLM** but does not support tool binding. The `chart_node` uses `bind_tools` to ask the LLM to call `generate_chart_spec`, but Sarvam bypasses the tool call mechanism and returns plain text — so `msg.tool_calls` is always empty and `visualization_spec` was always `None`.
+
+**Solution:** Added `_infer_chart_spec(question, rows)` to `app/agents/chart.py`. When the LLM does not produce tool calls (regardless of which LLM is active), the function inspects result column types as a fallback **chart-generation strategy**:
+- First `str`-type column → X-axis
+- First `int`/`float`-type column → Y-axis
+- Chart type inferred from question keywords: `"pie"` → pie, `"trend"`/`"over time"` → line, else → bar
+
+> **Note:** This is a fallback for the **chart generation strategy**, not LLM selection. The LLM hierarchy is: Sarvam (primary) → Gemini Flash (secondary) → GPT-4o-mini (tertiary). The deterministic chart inference applies whenever any LLM skips tool calls.
+
+### 8.3 Executive Dashboard (`/dashboard`)
+
+A new persistent dashboard page at `http://localhost:5173/dashboard`.
+
+**Backend:** `app/api/charts.py` — three endpoints:
+- `POST /api/v1/charts/` — saves `{title, spec}` to `saved_charts` SQLite table (authenticated)
+- `GET /api/v1/charts/` — returns all saved charts
+- `DELETE /api/v1/charts/{id}` — deletes a chart (creator or admin only)
+
+**Frontend:** `frontend/src/components/Dashboard.jsx` — rewrote from Vega-Embed to Recharts. Shows:
+- Grid of saved chart cards with bar/line/pie rendered via Recharts
+- Trash icon to delete individual charts (with confirm dialog)
+- Logged-in username chip + logout button in header
+
+**Frontend:** `frontend/src/components/ChartRenderer.jsx`:
+- "Pin to Dashboard" button is now always visible (was hover-only)
+- Button calls `POST /api/v1/charts/` with the chart spec
+
+### 8.4 Database Table Auto-Creation on Startup
+
+**Problem:** `saved_charts`, `audit_logs`, and `connections` tables were never created because `Base.metadata.create_all()` was never called.
+
+**Fix:** Added `@app.on_event("startup")` handler in `main.py`:
+```python
+@app.on_event("startup")
+async def create_db_tables():
+    from app.db.session import Base, engine
+    from app.db import models
+    Base.metadata.create_all(bind=engine)
+```
+
+### 8.5 CSV Data Import (`POST /api/v1/connections/csv`)
+
+Admin-only endpoint. Accepts a `.csv` file upload, reads it with pandas, and writes it to SQLite via `df.to_sql(name=table_name, ...)`. The table name is derived from the filename (spaces and dashes replaced with underscores). The new table is immediately queryable by the AI agent.
+
+### 8.6 SQL Prompt Hardening
+
+`app/sql/generator.py` prompt now explicitly:
+- Prohibits table aliases (e.g., `FROM employees e`)
+- Prohibits backtick quoting (SQLite incompatible)
+- Strips `<think>...</think>` and unclosed `<think>...` blocks from LLM output before SQL execution

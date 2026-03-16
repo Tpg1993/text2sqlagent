@@ -177,7 +177,9 @@ export default function ChatInterface() {
                     role: 'assistant',
                     content: res.response,
                     chart: res.chart,
-                    data: res.data
+                    data: res.data,
+                    failed_sql: res.failed_sql,
+                    schema_context: res.schema_context
                 };
                 setMessages(prev => [...prev, assistantMsg]);
             }

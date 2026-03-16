@@ -10,7 +10,7 @@ def format_node(state: AgentState):
     
     # Check if this is a final failure after retries
     retry_count = state.get("retry_count", 0)
-    if retry_count > 3 and state.get("error"):
+    if retry_count >= 3 and state.get("error"):
         content = (
             f"❌ I attempted to generate the SQL query multiple times but encountered errors.\n\n"
             f"**Last Error:** {state.get('error')}\n\n"

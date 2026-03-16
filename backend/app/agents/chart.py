@@ -1,7 +1,26 @@
 import json
-from langchain_openai import ChatOpenAI
 from app.config import settings
 from app.utils.state import AgentState
+
+def _infer_chart_spec(question: str, rows: list) -> dict | None:
+    """Deterministically infer a chart spec from result rows without LLM tool calls."""
+    if not rows:
+        return None
+    cols = list(rows[0].keys())
+    # Pick first string column as X, first numeric column as Y
+    x_key = next((c for c in cols if isinstance(rows[0][c], str)), cols[0])
+    y_keys = [c for c in cols if c != x_key and isinstance(rows[0].get(c), (int, float))]
+    if not y_keys:
+        return None
+    q = question.lower()
+    chart_type = "pie" if "pie" in q else "line" if ("trend" in q or "over time" in q) else "bar"
+    return {
+        "type": chart_type,
+        "title": question[:60],
+        "data": rows,
+        "xKey": x_key,
+        "yKey": y_keys[0],
+    }
 
 def chart_node(state: AgentState):
     """Suggests Chart."""
@@ -48,21 +67,15 @@ def chart_node(state: AgentState):
         
         # Extract tool call arguments
         if msg.tool_calls:
-            # The tool call arguments are already a dict matching our spec
             spec = msg.tool_calls[0]['args']
-            # Map Python snake_case to frontend camelCase if needed, but our tool logic already does that?
-            # Actually, the tool_calls['args'] will be the arguments to the function (snake_case).
-            # We need to ensure the output matches what the frontend expects.
-            # The 'generate_chart_spec' function helps, but bind_tools doesn't run the function automatically.
-            # We can just use the args directly and transform them, OR run the function.
-            
-            # Let's run the function to get the clean dict
             final_spec = generate_chart_spec(**spec)
             return {"visualization_spec": final_spec}
         else:
-            print("Warning: LLM did not call the chart tool.")
-            return {"visualization_spec": None}
+            print("Warning: LLM did not call the chart tool — using deterministic fallback.")
+            fallback = _infer_chart_spec(state.get('question', ''), state['sql_result'])
+            return {"visualization_spec": fallback}
             
     except Exception as e:
-        print(f"Error generating chart: {e}")
-        return {"visualization_spec": None}
+        print(f"Error generating chart: {e} — using deterministic fallback.")
+        fallback = _infer_chart_spec(state.get('question', ''), state['sql_result'])
+        return {"visualization_spec": fallback}

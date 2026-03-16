@@ -7,10 +7,10 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-print("[DEBUG] Loading app.main...", flush=True)
+
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-print("[DEBUG] FastAPI imported", flush=True)
+
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -18,9 +18,7 @@ from typing import List, Dict, Any, Optional
 import uuid
 from datetime import timedelta
 
-print("[DEBUG] Importing graph...", flush=True)
 from app.graphs.agent_graph import graph
-print("[DEBUG] Graph imported.", flush=True)
 
 from app.config import settings
 from app.utils.sse_manager import sse_manager
@@ -30,7 +28,7 @@ from app.auth.jwt import create_access_token, get_current_user_token, verify_tok
 from fastapi import Query
 
 # Rate Limiting
-print("[DEBUG] Importing slowapi...")
+
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -38,7 +36,7 @@ from slowapi.errors import RateLimitExceeded
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address, headers_enabled=True)
 
-print("[DEBUG] Initializing FastAPI app...")
+
 app = FastAPI(title=settings.PROJECT_NAME)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -68,7 +66,7 @@ app.add_middleware(
 # Setup OpenTelemetry
 # from app.utils.telemetry import setup_telemetry
 # setup_telemetry(app)
-print("[DEBUG] App initialization complete (pre-startup)")
+
 
 from app.api.connections import router as connections_router
 from app.api.charts import router as charts_router
@@ -77,6 +75,14 @@ app.include_router(connections_router, prefix=settings.API_V1_STR)
 app.include_router(charts_router, prefix=settings.API_V1_STR)
 app.include_router(admin_router, prefix=settings.API_V1_STR)
 
+@app.on_event("startup")
+async def create_db_tables():
+    """Create all SQLAlchemy tables on startup (saved_charts, audit_logs, connections)."""
+    from app.db.session import Base, engine
+    from app.db import models  # noqa: F401 — ensures all models are registered
+    print("[STARTUP] Creating database tables if they don't exist...")
+    Base.metadata.create_all(bind=engine)
+    print("[STARTUP] Database tables ready.")
 
 from pydantic import BaseModel, Field
 
@@ -309,15 +315,37 @@ async def execute_corrected_sql(
     from app.db.session import engine
     
     try:
+        import re
         clean_sql = request.sql.replace('```sql', '').replace('```', '').strip()
+        # Strip <think>...</think> blocks in case user copied LLM output verbatim
+        clean_sql = re.sub(r'<think>.*?</think>', '', clean_sql, flags=re.DOTALL).strip()
+        if '<think>' in clean_sql:
+            clean_sql = re.sub(r'<think>.*', '', clean_sql, flags=re.DOTALL).strip()
         
         with engine.connect() as conn:
             result = conn.execute(text(clean_sql))
             rows = [dict(row._mapping) for row in result]
             
+        # Auto-generate a chart spec from the result columns
+        chart_spec = None
+        if rows:
+            cols = list(rows[0].keys())
+            # Find first string-like column for X-axis and numeric columns for Y-axis
+            x_key = next((c for c in cols if isinstance(rows[0][c], str)), cols[0])
+            y_keys = [c for c in cols if c != x_key and isinstance(rows[0].get(c), (int, float))]
+            if y_keys:
+                chart_spec = {
+                    "type": "bar",
+                    "title": "Query Results",
+                    "data": rows,
+                    "xKey": x_key,
+                    "yKey": y_keys[0],
+                }
+
         return ChatResponse(
-            response="Successfully executed corrected SQL.",
-            data=rows
+            response=f"Executed SQL: `{clean_sql}`",
+            data=rows,
+            chart=chart_spec
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Database execution failed: {str(e)}")

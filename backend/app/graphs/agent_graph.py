@@ -298,7 +298,7 @@ workflow.add_edge("approval_pending", "format")
 
 # Retry Logic
 def route_retry(state):
-    if state.get("retry_count", 0) > 3: return "format"
+    if state.get("retry_count", 0) >= 3: return "format"
     return "generate"
 
 workflow.add_conditional_edges("retry", route_retry, {"generate": "generate", "format": "format"})

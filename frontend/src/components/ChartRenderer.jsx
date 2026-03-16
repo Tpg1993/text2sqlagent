@@ -15,7 +15,7 @@ export default function ChartRenderer({ spec }) {
         try {
             setSaving(true);
             const token = localStorage.getItem('token');
-            const res = await fetch('/api/v1/charts', {
+            const res = await fetch('/api/v1/charts/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -28,7 +28,9 @@ export default function ChartRenderer({ spec }) {
             });
             
             if (!res.ok) {
-                throw new Error("Failed to save chart");
+                const errBody = await res.text();
+                console.error('Save chart error:', res.status, errBody);
+                throw new Error(`Failed to save chart (${res.status}): ${errBody}`);
             }
             
             setSaved(true);
@@ -97,10 +99,10 @@ export default function ChartRenderer({ spec }) {
                 <button 
                   onClick={handleSave} 
                   disabled={saving || saved}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-1 px-2 rounded border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-indigo-600 text-slate-200 py-1 px-2 rounded border border-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {saved ? <Check size={14} className="text-green-400" /> : <Save size={14} />}
-                    {saved ? 'Saved!' : 'Save to Dashboard'}
+                    {saved ? 'Saved!' : 'Pin to Dashboard'}
                 </button>
             </div>
             <ResponsiveContainer width="100%" height="90%">

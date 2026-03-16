@@ -7,9 +7,12 @@ A production-grade, modular Agentic application with **NeMo Guardrails** and **P
 - **🤖 Intelligent Agent Orchestration**: LangGraph-based routing between SQL and RAG flows
 - **🛡️ Input/Output Guardrails**: NeMo Guardrails for jailbreak detection and content moderation
 - **🔒 PII Protection**: Microsoft Presidio for automatic PII detection and anonymization
-- **📊 Text2SQL**: Natural language to SQL query generation with retry logic
+- **📊 Text2SQL**: Natural language to SQL query generation with retry logic and self-correction UI
 - **📚 RAG (Retrieval-Augmented Generation)**: Document-based question answering with FAISS vector store
-- **📈 Visualization**: Automatic chart generation with Vega-Lite
+- **📈 Visualization**: Automatic chart generation (bar, line, pie) using Recharts with deterministic fallback
+- **📌 Executive Dashboard**: Pin charts from chat to a persistent `/dashboard` page, with delete and user management
+- **📁 CSV Data Upload**: Admins can upload any `.csv` file to instantly add it as a queryable SQLite table
+- **🔁 SQL Self-Correction**: Editable SQL editor appears below error messages so users can fix and re-run queries
 - **⚡ Real-time Progress**: SSE-based agent step updates stream live per agent node (orchestrator, generate, execute, etc.).
 
 ## 🏗️ Architecture
@@ -335,10 +338,38 @@ Expected: Request blocked with safety message.
 
 ## 📊 API Endpoints
 
-- `POST /chat` - Main chat endpoint (creates SSE session per request)
-- `GET /sse/{session_id}` - Server-Sent Events for live agent step progress (active)
-- `POST /upload-docs` - Upload PDF for RAG ingestion (admin only)
-- `GET /health` - Health check
+### Chat
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/chat` | User | Main chat endpoint — runs the full agent graph |
+| `POST` | `/api/v1/chat/correct-sql` | User | Execute a manually corrected SQL statement |
+| `GET` | `/api/v1/stream/{session_id}` | User | SSE stream for live agent step progress |
+
+### Documents & Data
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/upload-docs` | Admin | Upload a PDF to ingest into RAG (FAISS) |
+| `POST` | `/api/v1/connections/csv` | Admin | Upload a CSV — instantly creates a queryable SQLite table |
+
+### Dashboard & Charts
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/charts/` | User | Pin a chart to the dashboard |
+| `GET` | `/api/v1/charts/` | User | Load all saved charts for the dashboard |
+| `DELETE` | `/api/v1/charts/{id}` | Creator / Admin | Remove a chart from the dashboard |
+
+### Database Connections Registry
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/connections/` | Admin | Register a new DB connection (host, port, credentials) |
+| `GET` | `/api/v1/connections/` | User | List all registered connections |
+
+### Admin & System
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health` | Public | Health check |
+| `GET` | `/api/v1/admin/audit-logs` | Admin | View the audit log of all queries |
+| `POST` | `/api/v1/auth/login` | Public | Login (returns JWT) |
 
 ## 🔐 User Roles & Credentials (Mock Auth)
 
@@ -406,24 +437,27 @@ See `documentation/evaluation/` for detailed docs on each pillar (`01`–`04`).
 .
 ├── backend/
 │   ├── app/
-│   │   ├── agents/          # Individual agent nodes
-│   │   ├── db/              # Database initialization
-│   │   ├── graphs/          # LangGraph workflow
+│   │   ├── agents/          # Individual agent nodes (chart, format, etc.)
+│   │   ├── api/             # REST routers (charts, connections, admin)
+│   │   ├── db/              # SQLAlchemy models & session
+│   │   ├── graphs/          # LangGraph workflow & routing
 │   │   ├── rag/             # RAG ingestion & retrieval
-│   │   ├── utils/           # Utilities (LLM, PII, Guardrails)
-│   │   └── main.py          # FastAPI app
+│   │   ├── sql/             # SQL generation & validation
+│   │   ├── tools/           # LangChain tools (chart_tools, web search)
+│   │   ├── utils/           # LLM, PII, Guardrails, security
+│   │   └── main.py          # FastAPI app entry point
 │   ├── config/
 │   │   └── rails/           # NeMo Guardrails config
 │   ├── data/
-│   │   ├── docs/            # PDF documents
+│   │   ├── docs/            # PDF documents for RAG
 │   │   └── faiss_index/     # FAISS vector store
 │   ├── evaluation/          # 🧪 Continuous Evaluation
-│   │   ├── eval_orchestrator.py   # Routing accuracy (golden dataset)
-│   │   ├── eval_rag.py            # RAG quality (RAGAS)
-│   │   ├── eval_text2sql.py       # SQL quality (DeepEval)
-│   │   ├── eval_general.py        # General agent (LLM-as-a-judge)
-│   │   ├── datasets/              # Golden datasets (CSV)
-│   │   └── reports/               # Timestamped JSON reports
+│   │   ├── eval_orchestrator.py
+│   │   ├── eval_rag.py
+│   │   ├── eval_text2sql.py
+│   │   ├── eval_general.py
+│   │   ├── datasets/
+│   │   └── reports/
 │   └── requirements.txt
 ├── documentation/
 │   ├── evaluation/          # Eval design docs (01–04)
@@ -433,7 +467,11 @@ See `documentation/evaluation/` for detailed docs on each pillar (`01`–`04`).
 └── frontend/
     ├── src/
     │   ├── components/      # React components
-    │   ├── api/             # API client
+    │   │   ├── ChatInterface.jsx   # Main chat + SQL self-correction UI
+    │   │   ├── ChartRenderer.jsx   # Recharts renderer + Pin to Dashboard
+    │   │   └── Dashboard.jsx       # Executive dashboard with saved charts
+    │   ├── api/             # API client (client.js)
+    │   ├── contexts/        # AuthContext (JWT + role)
     │   └── App.jsx
     └── package.json
 ```
