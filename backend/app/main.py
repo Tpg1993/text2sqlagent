@@ -197,7 +197,7 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
     # Generate or use provided session ID
     session_id = body.session_id or str(uuid.uuid4())
     sse_manager.create_session(session_id)
-    print(f"[DEBUG] Chat Endpoint: Received message '{body.message}' Session: {session_id}")
+    print(f"[DEBUG] Chat Endpoint: Received message (length: {len(body.message)}) Session: {session_id}")
     
     try:
         from langchain_core.messages import HumanMessage

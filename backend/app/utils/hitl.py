@@ -93,7 +93,7 @@ class ApprovalManager:
         
         self._pending_requests[request.request_id] = request
         print(f"🔒 [HITL] Created approval request: {request.request_id}")
-        print(f"   Query: {query[:100]}...")
+        print(f"   Query length: {len(query)} characters")
         print(f"   Sensitive tables: {', '.join(sensitive_tables)}")
         
         return request
