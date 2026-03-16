@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 tracer = trace.get_tracer(__name__)
 
-def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: str = "LLM Chain", tags: list = None, metadata: Dict[str, Any] = None) -> str:
+def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: str = "LLM Chain", tags: list = None, metadata: Dict[str, Any] = None, return_provider: bool = False) -> Any:
     """
     Invokes a chain using Gemini (primary) with OpenAI as fallback.
     Supports LangSmith tracing with custom name and tags.
@@ -88,6 +88,8 @@ def invoke_chain_with_fallback(chain_factory, input_data: Dict[str, Any], name: 
                     config={"run_name": name, "tags": tags, "metadata": metadata}
                 )
                 print(f"✅ {pid.capitalize()} response received")
+                if return_provider:
+                    return result, pid
                 return result
             except Exception as e:
                 print(f"❌ {pid.capitalize()} call failed: {e}")

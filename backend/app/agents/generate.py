@@ -19,16 +19,18 @@ def generate_node(state: AgentState):
     # and we can clear 'error' here or let the validate node handle it.
     # Usually returning {"error": None} clears it.
     
-    sql = generate_sql_query(
+    sql, pid = generate_sql_query(
         schema=state['schema'], 
         plan=state.get('plan', "Directly translate the question to SQL based on the schema."), 
         question=state['question'],
         previous_error=previous_error,
         previous_query=previous_query,
-        metadata={"session_id": state.get("session_id")}
+        metadata={"session_id": state.get("session_id")},
+        return_provider=True
     )
     
     return {
         "sql_query": sql,
+        "llm_used": pid,
         "error": None # Clear error on new generation
     }

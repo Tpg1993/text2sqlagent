@@ -32,6 +32,7 @@ class AgentState(TypedDict):
     # Meta
     retry_count: int
     session_id: Optional[str]  # For SSE progress streaming
+    llm_used: Optional[str]
     
     # Security Context (Identity & Audit)
     agent_identity: dict

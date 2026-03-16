@@ -55,12 +55,13 @@ def general_node(state: AgentState):
         return llm
     
     try:
-        response = invoke_chain_with_fallback(
+        response, pid = invoke_chain_with_fallback(
             chain_factory,
             input_data=messages,
             name="General Agent",
             tags=["general", "search"],
-            metadata={"session_id": state.get("session_id")}
+            metadata={"session_id": state.get("session_id")},
+            return_provider=True
         )
         
         # Check if tool call
@@ -73,9 +74,9 @@ def general_node(state: AgentState):
                 # passing the arguments from the LLM
                 search_result = web_search.invoke(tool_call['args'])
                 
-                return {"messages": [response, f"Search Result: {search_result}"]}
+                return {"messages": [response, f"Search Result: {search_result}"], "llm_used": pid}
         
-        return {"messages": [response]}
+        return {"messages": [response], "llm_used": pid}
     except Exception as e:
         print(f"General Agent Error: {e}")
         return {"messages": [f"I encountered an error: {str(e)}"]}

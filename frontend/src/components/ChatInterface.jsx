@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock, BarChart3, ShieldCheck } from 'lucide-react';
+import { Send, Bot, User, Loader2, Database, FileText, LogOut, Clock, BarChart3, ShieldCheck, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DOMPurify from 'dompurify';
 import ChartRenderer from './ChartRenderer';
@@ -17,6 +17,9 @@ export default function ChatInterface() {
     
     // For SQL Self-Correction
     const [editingSqlIndexes, setEditingSqlIndexes] = useState({});
+    
+    // For Metadata Dropdown
+    const [expandedMetaIndexes, setExpandedMetaIndexes] = useState({});
     
     // Track active approval polls so we can cancel them on unmount
     const activePollsRef = useRef({});
@@ -40,6 +43,10 @@ export default function ChatInterface() {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const toggleMetadata = (index) => {
+        setExpandedMetaIndexes(prev => ({ ...prev, [index]: !prev[index] }));
     };
 
     /**
@@ -179,7 +186,10 @@ export default function ChatInterface() {
                     chart: res.chart,
                     data: res.data,
                     failed_sql: res.failed_sql,
-                    schema_context: res.schema_context
+                    schema_context: res.schema_context,
+                    llm_used: res.llm_used,
+                    sql_query: res.sql_query,
+                    retrieved_docs: res.retrieved_docs
                 };
                 setMessages(prev => [...prev, assistantMsg]);
             }
@@ -310,6 +320,51 @@ export default function ChatInterface() {
                                         {DOMPurify.sanitize(msg.content)}
                                     </ReactMarkdown>
                                 </div>
+
+                                {/* Metadata Dropdown */}
+                                {(msg.llm_used || msg.sql_query || msg.retrieved_docs) && (
+                                    <div className="w-full mt-1">
+                                        <button 
+                                            onClick={() => toggleMetadata(idx)}
+                                            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                                        >
+                                            <Info size={12} />
+                                            <span>Response Metadata</span>
+                                            {expandedMetaIndexes[idx] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                        </button>
+                                        
+                                        {expandedMetaIndexes[idx] && (
+                                            <div className="mt-2 p-3 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-400 space-y-3 max-w-full overflow-hidden">
+                                                {msg.llm_used && (
+                                                    <div className="flex gap-2 items-center">
+                                                        <span className="text-slate-500 min-w-16">LLM:</span>
+                                                        <span className="text-indigo-400 font-semibold">{msg.llm_used}</span>
+                                                    </div>
+                                                )}
+                                                {msg.retrieved_docs && (
+                                                    <div className="flex gap-2 flex-col">
+                                                        <span className="text-slate-500">RAG Sources:</span>
+                                                        <ul className="list-disc list-inside pl-2 text-emerald-400">
+                                                            {msg.retrieved_docs.map((doc, i) => {
+                                                                // Extract just the filename from potentially absolute paths
+                                                                const filename = doc.split(/[/\\]/).pop();
+                                                                return <li key={i}>{filename}</li>;
+                                                            })}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {msg.sql_query && (
+                                                    <div className="flex gap-2 flex-col">
+                                                        <span className="text-slate-500">SQL Executed:</span>
+                                                        <pre className="whitespace-pre-wrap break-all text-cyan-400 bg-slate-950 p-2 rounded border border-slate-800">
+                                                            {msg.sql_query}
+                                                        </pre>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Optional Data Table */}
                                 {msg.data && msg.data.length > 0 && (

@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from app.utils.llm import invoke_chain_with_fallback
-from typing import Optional
+from typing import Optional, Any
 
 # Prompts
 PLANNER_PROMPT = """You are a senior data architect.
@@ -53,7 +53,7 @@ def generate_plan(schema: str, question: str, tags: Optional[list] = None, metad
         metadata=metadata
     )
 
-def generate_sql_query(schema: str, plan: str, question: str, previous_error: Optional[str] = None, previous_query: Optional[str] = None, tags: Optional[list] = None, metadata: Optional[dict] = None) -> str:
+def generate_sql_query(schema: str, plan: str, question: str, previous_error: Optional[str] = None, previous_query: Optional[str] = None, tags: Optional[list] = None, metadata: Optional[dict] = None, return_provider: bool = False) -> Any:
     error_context = ""
     if previous_error and previous_query:
         error_context = f"IMPORTANT: The previous query `{previous_query}` failed with error: {previous_error}. Fix the query."
@@ -61,18 +61,33 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
     def create_chain(llm):
         return ChatPromptTemplate.from_template(GEN_SQL_PROMPT) | llm | StrOutputParser()
         
-    sql = invoke_chain_with_fallback(
-        create_chain, 
-        {
-            "schema": schema, 
-            "plan": plan, 
-            "question": question,
-            "error_context": error_context
-        },
-        name="SQL Generator Agent",
-        tags=tags or ["sql", "generation"],
-        metadata=metadata
-    )
+    if return_provider:
+        sql, pid = invoke_chain_with_fallback(
+            create_chain, 
+            {
+                "schema": schema, 
+                "plan": plan, 
+                "question": question,
+                "error_context": error_context
+            },
+            name="SQL Generator Agent",
+            tags=tags or ["sql", "generation"],
+            metadata=metadata,
+            return_provider=True
+        )
+    else:
+        sql = invoke_chain_with_fallback(
+            create_chain, 
+            {
+                "schema": schema, 
+                "plan": plan, 
+                "question": question,
+                "error_context": error_context
+            },
+            name="SQL Generator Agent",
+            tags=tags or ["sql", "generation"],
+            metadata=metadata
+        )
     
     # Strip markdown and reasoning
     raw_response = sql.replace("```sql", "").replace("```", "").strip().strip('"').strip("'")
@@ -99,4 +114,7 @@ def generate_sql_query(schema: str, plan: str, question: str, previous_error: Op
         filtered_lines.append(line)
         
     final_sql = "\n".join(filtered_lines).strip()
+    
+    if return_provider:
+        return final_sql, pid
     return final_sql

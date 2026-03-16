@@ -97,6 +97,9 @@ class ChatResponse(BaseModel):
     approval_status: Optional[str] = None
     failed_sql: Optional[str] = None
     schema_context: Optional[str] = None
+    llm_used: Optional[str] = None
+    retrieved_docs: Optional[List[str]] = None
+    sql_query: Optional[str] = None
 
 class SqlCorrectionRequest(BaseModel):
     sql: str
@@ -271,7 +274,10 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
             data=final_data,
             chart=result.get("visualization_spec"),
             failed_sql=result.get("failed_sql"),
-            schema_context=result.get("schema_context")
+            schema_context=result.get("schema_context"),
+            llm_used=result.get("llm_used"),
+            sql_query=result.get("sql_query"),
+            retrieved_docs=[d.metadata.get("source", "company doc") for d in result.get("documents", [])] if result.get("documents") else None
         )
     except Exception as e:
         import traceback
