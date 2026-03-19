@@ -71,9 +71,11 @@ app.add_middleware(
 from app.api.connections import router as connections_router
 from app.api.charts import router as charts_router
 from app.api.admin import router as admin_router
+from app.api.chat_history import router as chat_history_router
 app.include_router(connections_router, prefix=settings.API_V1_STR)
 app.include_router(charts_router, prefix=settings.API_V1_STR)
 app.include_router(admin_router, prefix=settings.API_V1_STR)
+app.include_router(chat_history_router, prefix=settings.API_V1_STR)
 
 @app.on_event("startup")
 async def create_db_tables():
@@ -100,6 +102,7 @@ class ChatResponse(BaseModel):
     llm_used: Optional[str] = None
     retrieved_docs: Optional[List[str]] = None
     sql_query: Optional[str] = None
+    reasoning: Optional[str] = None
 
 class SqlCorrectionRequest(BaseModel):
     sql: str
@@ -137,10 +140,19 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @app.get(settings.API_V1_STR + "/stream/{session_id}")
 async def stream_progress(session_id: str, token: str = Query(...)):
     """SSE endpoint for streaming agent progress. Requires token query param."""
-    # TEMPORARILY DISABLED - StreamingResponse causing issues
-    # Return empty response to prevent frontend errors
-    from fastapi.responses import Response
-    return Response(content="", media_type="text/plain", status_code=200)
+    from fastapi.responses import StreamingResponse
+    from fastapi import HTTPException
+    from jose import jwt
+    from app.auth.jwt import SECRET_KEY, ALGORITHM
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token for streaming")
+        
+    return StreamingResponse(
+        sse_manager.stream_events(session_id),
+        media_type="text/event-stream"
+    )
 
 # Helper: Extract User ID for Rate Limiting
 def get_user_key(request: Request):
@@ -247,9 +259,10 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
                             pii_scrubbed = True
                         row[k] = deanonymize_text(v)
         
-        # Save audit log
+        # Save audit log & chat history
         from app.db.session import SessionLocal
-        from app.db.models import AuditLog
+        from app.db.models import AuditLog, ChatSession, ChatMessage
+        from datetime import datetime, timezone
         db = SessionLocal()
         try:
             audit = AuditLog(
@@ -260,9 +273,38 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
                 pii_scrubbed=pii_scrubbed
             )
             db.add(audit)
+            
+            # Save Chat Session
+            chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+            if not chat_session:
+                # Use first 30 chars as title if new
+                title = body.message[:30] + "..." if len(body.message) > 30 else body.message
+                chat_session = ChatSession(id=session_id, username=current_user.username, title=title)
+                db.add(chat_session)
+            else:
+                chat_session.updated_at = datetime.now(timezone.utc)
+                
+            # Save User Message
+            user_msg = ChatMessage(
+                session_id=session_id,
+                role="user",
+                content=body.message
+            )
+            db.add(user_msg)
+            
+            # Save Assistant Message
+            assistant_msg = ChatMessage(
+                session_id=session_id,
+                role="assistant",
+                content=response_text,
+                data=final_data,
+                chart=result.get("visualization_spec")
+            )
+            db.add(assistant_msg)
+            
             db.commit()
         except BaseException as e:
-            logger.error(f"Failed to save audit log: {e}")
+            logger.error(f"Failed to save db items: {e}")
         finally:
             db.close()
 
@@ -277,7 +319,8 @@ async def chat_endpoint(request: Request, body: ChatRequest, current_user: Token
             schema_context=result.get("schema_context"),
             llm_used=result.get("llm_used"),
             sql_query=result.get("sql_query"),
-            retrieved_docs=[d.metadata.get("source", "company doc") for d in result.get("documents", [])] if result.get("documents") else None
+            retrieved_docs=list(dict.fromkeys([d.metadata.get("source", "company doc") for d in result.get("documents", [])])) if result.get("documents") else None,
+            reasoning=result.get("reasoning")
         )
     except Exception as e:
         import traceback

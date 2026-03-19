@@ -81,6 +81,7 @@ from app.agents.format import format_node
 from app.agents.rag_retrieve import retrieve_node
 from app.agents.rag_generate import rag_gen_node
 from app.agents.approval import approval_pending_node
+from app.agents.masking import masking_node
 from app.agents.general import general_node
 from app.utils.guardrails import get_guardrail_manager
 from app.utils.security import security_manager, Permission
@@ -208,8 +209,13 @@ workflow.add_node("approval_pending", trace_node("approval_pending",
     security_manager.enforce("approval_pending")(approval_pending_node)
 ))
 
+# Masking Node (DLP) - Scrubs PII from SQL results before LLM sees them
+workflow.add_node("masking", trace_node("masking",
+    security_manager.enforce("masking")(masking_node)
+))
+
 # General Agent (with Search)
-workflow.add_node("general", trace_node("general", 
+workflow.add_node("general", trace_node("general",
     security_manager.enforce("general")(general_node)
 ))
 
@@ -283,7 +289,8 @@ workflow.add_conditional_edges(
     }
 )
 
-workflow.add_edge("execute", "evaluate")
+workflow.add_edge("execute", "masking")
+workflow.add_edge("masking", "evaluate")
 
 def route_evaluate(state):
     if state.get("error"): return "retry"

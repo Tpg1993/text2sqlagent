@@ -2,8 +2,10 @@ import os
 import io
 import magic
 import fitz # PyMuPDF
-from langchain_community.document_loaders import PyPDFLoader
+import pickle
+from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import settings
@@ -46,7 +48,8 @@ def ingest_pdf_file(file_path: str = None):
         print(f"🚨 Ingestion Aborted: {e}")
         return
 
-    loader = PyPDFLoader(pdf_path)
+    print("📄 Loading PDF with Unstructured...")
+    loader = UnstructuredPDFLoader(pdf_path, mode="elements")
     docs = loader.load()
     
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -58,6 +61,8 @@ def ingest_pdf_file(file_path: str = None):
     pii_scrubber = get_pii_scrubber()
     pii_count = 0
     
+    original_filename = os.path.basename(original_pdf_path)
+    
     for doc in splits:
         original_content = doc.page_content
         scrubbed_content = pii_scrubber.scrub_text(original_content)
@@ -67,6 +72,7 @@ def ingest_pdf_file(file_path: str = None):
             pii_count += 1
         
         doc.page_content = scrubbed_content
+        doc.metadata["source"] = original_filename
     
     print(f"✅ PII scrubbed from {pii_count}/{len(splits)} document chunks")
     
@@ -81,6 +87,13 @@ def ingest_pdf_file(file_path: str = None):
     )
     vectorstore.save_local(settings.FAISS_INDEX_PATH)
     print(f"Ingested {len(splits)} chunks into FAISS.")
+
+    print("🔍 Creating BM25 Index for Hybrid Search...")
+    bm25_retriever = BM25Retriever.from_documents(splits)
+    bm25_path = os.path.join(settings.BASE_DIR, "data", "bm25_index.pkl")
+    with open(bm25_path, "wb") as f:
+        pickle.dump(bm25_retriever, f)
+    print("✅ Saved BM25 Index to data/bm25_index.pkl")
 
     # Clean up the sanitized temp PDF — prevents accumulation of *_sanitized*.pdf files
     if pdf_path != original_pdf_path and os.path.exists(pdf_path):

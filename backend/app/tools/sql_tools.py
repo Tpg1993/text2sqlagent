@@ -3,7 +3,7 @@
 from typing import List, Dict, Any, Optional
 from langchain_core.tools import tool
 from sqlalchemy import inspect, text
-from app.db.session import engine
+from app.db.session import data_engine
 from app.utils.security import security_manager
 
 @tool(parse_docstring=True)
@@ -22,7 +22,7 @@ def list_tables(state: dict = None) -> List[str]:
         return ["Error: Access denied for this agent."]
     # Role check removed - enforced at agent node level
     try:
-        inspector = inspect(engine)
+        inspector = inspect(data_engine)
         return inspector.get_table_names()
     except Exception as e:
         return [f"Error listing tables: {str(e)}"]
@@ -46,7 +46,7 @@ def get_table_schema(table_name: str, state: dict = None) -> str:
         return "Error: Access denied for this agent."
     # Role check removed - enforced at agent node level
     try:
-        inspector = inspect(engine)
+        inspector = inspect(data_engine)
         valid_tables = inspector.get_table_names()
         if table_name not in valid_tables:
             return f"Error: Table '{table_name}' does not exist or is not accessible."
@@ -87,12 +87,12 @@ def get_sample_rows(table_name: str, limit: int = 3, state: dict = None) -> List
         return [{"error": "Access denied for this agent."}]
     try:
         # Sanitization: Validate table name against database whitelist
-        inspector = inspect(engine)
+        inspector = inspect(data_engine)
         valid_tables = inspector.get_table_names()
         if table_name not in valid_tables:
              return [{"error": f"Error: Table '{table_name}' does not exist or is not accessible."}]
 
-        with engine.connect() as connection:
+        with data_engine.connect() as connection:
             # Use text() for safe SQL execution
             # We construct the query using the validated table_name
             query = text(f"SELECT * FROM {table_name} LIMIT :limit")

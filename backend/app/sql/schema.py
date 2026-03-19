@@ -1,9 +1,9 @@
 from sqlalchemy import inspect
-from app.db.session import engine
+from app.db.session import data_engine
 from typing import Dict, List
 
 def get_schema_text() -> str:
-    inspector = inspect(engine)
+    inspector = inspect(data_engine)
     table_names = inspector.get_table_names()
     schema_text = ""
     for table in table_names:
@@ -14,7 +14,7 @@ def get_schema_text() -> str:
     return schema_text
 
 def get_valid_tables_and_columns() -> Dict[str, List[str]]:
-    inspector = inspect(engine)
+    inspector = inspect(data_engine)
     table_names = inspector.get_table_names()
     valid_schema = {}
     for table in table_names:

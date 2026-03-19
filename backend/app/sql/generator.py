@@ -38,6 +38,8 @@ CRITICAL INSTRUCTIONS:
 -- REASONING: <brief 1-line explanation>
 <The actual SQL string>
 
+CRITICAL: If you need to reason or think before answering, you MUST wrap your reasoning entirely within <think> and </think> xml tags! Do not put reasoning outside those tags.
+
 Return ONLY the commented reasoning followed by the SQL. No markdown code fences.
 """
 

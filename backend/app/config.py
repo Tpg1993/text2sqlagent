@@ -85,8 +85,11 @@ class Config:
         self.GOOGLE_API_KEY = self.get_secret("GOOGLE_API_KEY", default="")
         self.LANGCHAIN_API_KEY = self.get_secret("LANGCHAIN_API_KEY", default="")
         
-        # Database
-        self.SQLITE_URL = f"sqlite:///{self.BASE_DIR}/data/sales.db"
+        # Database - NOTE: Two DB files:
+        # 1. sales.db = the customer's analytics data (read by agent for SQL queries)
+        # 2. text2sql.db = app metadata: audit_logs, saved_charts, chat history, etc.
+        self.DATA_DB_URL = f"sqlite:///{self.BASE_DIR}/data/sales.db"
+        self.SQLITE_URL = f"sqlite:///{self.BASE_DIR}/data/text2sql.db"
         
         # LLM Configuration
         self.LLM_PROVIDER = self.get_secret("LLM_PROVIDER", default="sarvam").lower()

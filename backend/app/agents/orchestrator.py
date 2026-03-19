@@ -33,10 +33,14 @@ def orchestrator_node(state: AgentState):
         metadata={"session_id": state.get("session_id")}
     ).strip().lower()
     
-    # Fallback / Cleaning
-    if "sql" in intent: intent = "sql"
-    elif "rag" in intent: intent = "rag"
-    elif "general" in intent: intent = "general"
-    else: intent = "general"
+    # Robust intent extraction: search for the last valid keyword
+    import re
+    words = re.findall(r'[a-zA-Z]+', intent)
     
-    return {"intent": intent}
+    final_intent = "general"
+    for word in reversed(words):
+        if word in ["sql", "rag", "general"]:
+            final_intent = word
+            break
+            
+    return {"intent": final_intent}

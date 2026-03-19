@@ -45,11 +45,9 @@ class ApprovalManager:
     """
     
     # Sensitive tables that require approval
-    # TEMPORARILY REDUCED: Removed "employees" to allow direct query execution
-    # (SSE is disabled, so approval results cannot reach frontend)
+    # Updated to match actual database schema
     SENSITIVE_TABLES = {
-        "customers", "salaries", "users", 
-        "payments", "credit_cards", "personal_info"
+        "users", "sales", "audit_logs"
     }
     
     def __init__(self):

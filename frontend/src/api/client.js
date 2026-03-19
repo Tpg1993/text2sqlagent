@@ -1,6 +1,6 @@
-export async function chat(message, onProgress) {
+export async function chat(message, onProgress, existingSessionId = null) {
     // Generate session ID
-    const sessionId = crypto.randomUUID();
+    const sessionId = existingSessionId || crypto.randomUUID();
 
     // Get token from storage
     const token = localStorage.getItem('token');
@@ -135,5 +135,37 @@ export async function executeCorrectedSql(sql) {
         throw error;
     }
 
+    return await response.json();
+}
+
+export async function getSessions() {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/v1/chat/sessions', {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+    });
+    if (!response.ok) throw new Error('Failed to fetch sessions');
+    return await response.json();
+}
+
+export async function getSessionHistory(sessionId) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+    });
+    if (!response.ok) throw new Error('Failed to fetch session history');
+    return await response.json();
+}
+
+export async function submitFeedback(messageId, feedbackValue) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/v1/chat/messages/${messageId}/feedback`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ feedback: feedbackValue })
+    });
+    if (!response.ok) throw new Error('Failed to submit feedback');
     return await response.json();
 }

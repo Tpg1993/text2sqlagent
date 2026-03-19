@@ -138,6 +138,13 @@ class SecurityPolicy:
             permissions=[]
         )
 
+        # Masking (DLP): Reads and rewrites sql_result, no special permissions
+        self.identities["masking"] = AgentIdentity(
+            name="masking",
+            role="data_sanitizer",
+            permissions=[]
+        )
+
 
         
     def get_identity(self, node_name: str) -> Optional[AgentIdentity]:

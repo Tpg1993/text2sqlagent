@@ -3,10 +3,15 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
 from typing import Generator
 
-# Ensure the DB URL is correct. SQLite requires 3 slashes for relative, 4 for absolute.
-# settings.SQLITE_URL is constructed carefully.
+# Main app DB (text2sql.db): stores audit logs, chat sessions, saved charts, etc.
 engine = create_engine(
     settings.SQLITE_URL,
+    connect_args={"check_same_thread": False}
+)
+
+# Analytics data DB (sales.db): the customer's data that agents run SQL on
+data_engine = create_engine(
+    settings.DATA_DB_URL,
     connect_args={"check_same_thread": False}
 )
 

@@ -9,8 +9,9 @@ RAG_PROMPT = """You are a helpful company support assistant. Answer the user's q
 RULES:
 - ONLY use information from the context. Do NOT use your general training knowledge.
 - If the context does not contain the answer, say exactly: "I don't have information about that in the company documents. Please contact support for assistance."
-- Be concise and cite which section of the document your answer comes from.
+- Be concise. Do NOT cite sources in your answer text, they are displayed elsewhere.
 - Do NOT make up information or policies not found in the context.
+- IMPORTANT: If you need to reason or think before answering, you MUST wrap your reasoning entirely within <think> and </think> xml tags. Do not put reasoning outside those tags! After closing the tags, provide your concise answer.
 
 --- COMPANY DOCUMENT CONTEXT ---
 {context}
@@ -31,10 +32,10 @@ def rag_gen_node(state: AgentState):
             "This could be because the document index is unavailable. "
             "Please try rephrasing your question or contact support directly."
         ))
-        return {"messages": [no_docs_msg], "rag_answer": no_docs_msg.content}
+        return {"messages": [no_docs_msg], "rag_answer": no_docs_msg.content, "reasoning": None}
 
     docs_content = "\n\n".join([
-        f"[Source: {d.metadata.get('source', 'company doc')}, page {d.metadata.get('page', '?')}]\n{d.page_content}"
+        f"[Source: {d.metadata.get('source', 'company doc')}, page {d.metadata.get('page', d.metadata.get('page_number', '?'))}]\n{d.page_content}"
         for d in docs
     ])
     
@@ -51,4 +52,17 @@ def rag_gen_node(state: AgentState):
         metadata={"session_id": state.get("session_id")},
         return_provider=True
     )
-    return {"rag_answer": ans, "llm_used": pid}
+    
+    import re
+    reasoning = None
+    think_match = re.search(r'<think>(.*?)</think>', ans, flags=re.IGNORECASE | re.DOTALL)
+    if think_match:
+        reasoning = think_match.group(1).strip()
+        ans = re.sub(r'<think>.*?</think>', '', ans, flags=re.IGNORECASE | re.DOTALL).strip()
+    elif '<think>' in ans:
+        after_think = ans.split('<think>', 1)[-1]
+        after_think = re.sub(r'</think>', '', after_think).strip()
+        ans = '' # if model never closed the think block, consider the entire output reasoning? Actually let's assume if tag opened, everything is reasoning.
+        reasoning = after_think.strip()
+    
+    return {"rag_answer": ans, "llm_used": pid, "reasoning": reasoning}
